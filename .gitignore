@@ -1,0 +1,12 @@
+# Godot 4+
+.godot/
+/export/
+export_presets.cfg
+
+# Secrets / env — NEVER commit API keys
+.env
+*.env
+secrets*
+
+# OS
+.DS_Store

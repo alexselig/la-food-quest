@@ -1,0 +1,23 @@
+config_version=5
+
+[application]
+config/name="LA Food Quest"
+config/description="Alp & Xiao's top-down LA food adventure (grid/tile-locked, Pokemon-style)."
+run/main_scene="res://scenes/world.tscn"
+config/features=PackedStringArray("4.6", "GL Compatibility")
+
+[autoload]
+GameState="*res://scripts/game_state.gd"
+
+[display]
+window/size/viewport_width=320
+window/size/viewport_height=180
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="viewport"
+window/stretch/aspect="keep"
+
+[rendering]
+textures/canvas_textures/default_texture_filter=0
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
