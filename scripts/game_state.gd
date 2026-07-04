@@ -131,3 +131,28 @@ func from_dict(d: Dictionary) -> void:
     discovered = d.get("discovered", {})
     meters_changed.emit()
     time_changed.emit()
+
+const SAVE_PATH := "user://save.json"
+
+func has_save() -> bool:
+    return FileAccess.file_exists(SAVE_PATH)
+
+func save_game() -> void:
+    var fa := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+    if fa:
+        fa.store_string(JSON.stringify(to_dict()))
+        fa.close()
+
+func load_game() -> bool:
+    if not FileAccess.file_exists(SAVE_PATH):
+        return false
+    var fa := FileAccess.open(SAVE_PATH, FileAccess.READ)
+    if fa == null:
+        return false
+    var txt := fa.get_as_text()
+    fa.close()
+    var data = JSON.parse_string(txt)
+    if typeof(data) == TYPE_DICTIONARY:
+        from_dict(data)
+        return true
+    return false

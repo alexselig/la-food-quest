@@ -98,6 +98,22 @@ func _run() -> int:
     f += ck(GS2.quest_state == GameStateScript.Quest.COMPLETE and ("WIN" in mwin), "legendary wins when unlocked")
     GS2.free()
 
+    # --- save / load ---
+    var GS3 = GameStateScript.new()
+    GS3.power = 42
+    GS3.fullness = 33.0
+    GS3.energy = 55.0
+    GS3.minutes = 600
+    GS3.day = 2
+    GS3.discovered["taco"] = true
+    GS3.save_game()
+    var GS4 = GameStateScript.new()
+    f += ck(GS4.has_save() == true, "save file exists")
+    f += ck(GS4.load_game() == true, "load succeeds")
+    f += ck(GS4.power == 42 and GS4.day == 2 and GS4.discovered.has("taco"), "loaded state matches saved")
+    GS3.free()
+    GS4.free()
+
     GS.free()
     W.free()
     return f

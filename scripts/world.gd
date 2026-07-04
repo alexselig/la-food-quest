@@ -10,6 +10,7 @@ const ROWS := 30
 
 const GridPlayerScript := preload("res://scripts/grid_player.gd")
 const HudScript := preload("res://scripts/hud.gd")
+const PauseMenuScript := preload("res://scripts/pause_menu.gd")
 
 var blocked: Dictionary = {}          # Vector2i -> true
 var objects_by_cell: Dictionary = {}  # Vector2i -> object dict
@@ -115,6 +116,7 @@ func _setup_camera() -> void:
 func _setup_hud() -> void:
     hud = HudScript.new()
     add_child(hud)
+    add_child(PauseMenuScript.new())
 
 func _draw() -> void:
     for x in COLS:

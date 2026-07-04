@@ -3,7 +3,7 @@ config_version=5
 [application]
 config/name="LA Food Quest"
 config/description="Alp & Xiao's top-down LA food adventure (grid/tile-locked, Pokemon-style)."
-run/main_scene="res://scenes/world.tscn"
+run/main_scene="res://scenes/title.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 
 [autoload]
