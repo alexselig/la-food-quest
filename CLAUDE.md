@@ -12,7 +12,7 @@ Eat to power up, exercise to avoid getting too full (can't eat while full), rest
 
 ## Characters
 - Both are young men of the SAME age with short hair + a central spike.
-- Alp: tall lanky Turkish man (olive skin, denim jacket).
+- Alp: tall lanky Turkish man (fair, only slightly tan skin; salt-and-pepper spiked hair; denim jacket).
 - Xiao: short Chinese man (red hoodie). Height contrast must be obvious.
 - On-map: ONE combined single-tile sprite showing both; 4-direction idle/walk.
 - Reference: design/reference/alp_xiao_duo_ref.png
