@@ -19,11 +19,17 @@ var hud: CanvasLayer
 var gs: Node                          # GameState autoload (injected in tests)
 var _grass: Texture2D
 var _building: Texture2D
+var _npc: Texture2D
+var _park: Texture2D
+var _bench: Texture2D
 
 func _ready() -> void:
     gs = get_node_or_null("/root/GameState")
     _grass = _load_tex("res://assets/tiles/grass.png")
     _building = _load_tex("res://assets/tiles/building.png")
+    _npc = _load_tex("res://assets/props/npc.png")
+    _park = _load_tex("res://assets/props/park.png")
+    _bench = _load_tex("res://assets/props/bench.png")
     _build_world()
     _spawn_player()
     _setup_camera()
@@ -146,6 +152,12 @@ func _draw() -> void:
         if _building and (t == "restaurant" or t == "rest_home" or t == "legendary"):
             var r := Rect2(cell.x * TILE - 3, cell.y * TILE - 8, TILE + 6, TILE + 8)
             draw_texture_rect(_building, r, false, Color(o["color"]).lerp(Color(1, 1, 1), 0.35))
+        elif _npc and t == "npc":
+            draw_texture_rect(_npc, Rect2(cell.x * TILE, cell.y * TILE - 6, TILE, TILE + 6), false)
+        elif _park and t == "exercise":
+            draw_texture_rect(_park, Rect2(cell.x * TILE - 2, cell.y * TILE - 8, TILE + 4, TILE + 8), false)
+        elif _bench and t == "rest_bench":
+            draw_texture_rect(_bench, Rect2(cell.x * TILE - 2, cell.y * TILE - 2, TILE + 4, TILE + 4), false)
         else:
             draw_rect(base, o["color"])
             draw_rect(base, Color(0, 0, 0, 0.6), false, 1.0)
