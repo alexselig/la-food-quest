@@ -160,10 +160,48 @@ func is_blocked(cell: Vector2i) -> bool:
 func _on_interact(cell: Vector2i) -> void:
     var msg := interact_at(cell)
     if msg == "" and gs != null and gs.on_bike and not objects_by_cell.has(cell):
-        gs.set_bike(false)
-        msg = "Hopped off the bike. The streets are calm again."
+        _dismount_bike()
+        return
     if msg != "" and hud:
         hud.toast(msg)
+
+func _mount_bike(o: Dictionary) -> void:
+    gs.set_bike(true)
+    _remove_object(o)
+
+func _dismount_bike() -> void:
+    if gs == null or not gs.on_bike:
+        return
+    gs.set_bike(false)
+    if player != null:
+        for c in [player.cell - player.facing, player.cell + player.facing]:
+            if not is_blocked(c):
+                _add_bike_at(c)
+                break
+    if hud:
+        hud.toast("Hopped off the bike. The streets are calm again.")
+
+func _remove_object(o: Dictionary) -> void:
+    var rect: Rect2i = o["rect"]
+    for i in range(rect.position.x, rect.position.x + rect.size.x):
+        for j in range(rect.position.y, rect.position.y + rect.size.y):
+            var c := Vector2i(i, j)
+            objects_by_cell.erase(c)
+            blocked.erase(c)
+    objects.erase(o)
+    queue_redraw()
+
+func _add_bike_at(cell: Vector2i) -> void:
+    var o := {"type": "bike", "id": "bike", "name": "Green Bike", "rect": Rect2i(cell.x, cell.y, 1, 1)}
+    objects.append(o)
+    objects_by_cell[cell] = o
+    blocked[cell] = true
+    queue_redraw()
+
+func _unhandled_input(event: InputEvent) -> void:
+    if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_D:
+        if gs != null and gs.on_bike:
+            _dismount_bike()
 
 func interact_at(cell: Vector2i) -> String:
     if not objects_by_cell.has(cell) or gs == null:
@@ -190,7 +228,7 @@ func interact_at(cell: Vector2i) -> String:
         "npc":
             if gs.quest_state >= 2:
                 return "%s: The Golden Ladle is open to you now - go feast!" % o["name"]
-            return "%s: Find The Golden Ladle! Eat around the city to reach 100 PWR and it will reveal itself." % o["name"]
+            return "%s: Reach 100 PWR by eating, then find The Golden Ladle!" % o["name"]
         "legendary":
             if gs.quest_state >= 2:
                 gs.set_quest_state(3)
@@ -198,10 +236,8 @@ func interact_at(cell: Vector2i) -> String:
                 return "You found THE GOLDEN LADLE! Alp & Xiao feast like kings. YOU WIN!"
             return "The Golden Ladle stays hidden... reach 100 PWR first to prove yourselves."
         "bike":
-            gs.set_bike(not gs.on_bike)
-            if gs.on_bike:
-                return "Hopped on the green bike! Move 2 tiles at a time - but now the cars are out. Dodge them!"
-            return "Parked the bike. The streets are calm again."
+            _mount_bike(o)
+            return "Hopped on the tandem bike! Move 2 tiles per step. Press D to hop off. Cars are out now - dodge them!"
     return ""
 
 func _celebrate(text: String) -> void:

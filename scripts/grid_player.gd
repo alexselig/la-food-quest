@@ -1,7 +1,7 @@
 extends Node2D
 class_name GridPlayer
-## Grid movement for the Alp+Xiao duo. 1 tile/step on foot; on the green bike, 2 tiles/step
-## (faster). Reads GameState.on_bike. Shows a green bike under the duo while riding.
+## Grid movement for Alp+Xiao. On foot: walking duo sprite, 1 tile/step. On the tandem bike:
+## a tandem sprite (both riding it), 2 tiles/step. Reads GameState.on_bike.
 
 const TILE := 16
 const MOVE_TIME := 0.14
@@ -13,10 +13,9 @@ var is_blocked: Callable
 var on_interact: Callable
 
 var _sprite: Sprite2D
-var _bike: Sprite2D
-var _tex_down: Texture2D
-var _tex_up: Texture2D
-var _tex_side: Texture2D
+var _walk := {}
+var _bike := {}
+var _was_bike := false
 var _gs: Node
 
 func setup(start_cell: Vector2i, blocked_check: Callable) -> void:
@@ -35,8 +34,9 @@ func _blk(c: Vector2i) -> bool:
     return is_blocked.is_valid() and is_blocked.call(c)
 
 func _process(_delta: float) -> void:
-    if _bike:
-        _bike.visible = _on_bike()
+    if _on_bike() != _was_bike:
+        _was_bike = _on_bike()
+        _update_sprite()
     if moving:
         return
     if on_interact.is_valid() and Input.is_action_just_pressed("ui_accept"):
@@ -81,26 +81,15 @@ func _cell_to_pos(c: Vector2i) -> Vector2:
     return Vector2(c.x * TILE + TILE / 2, c.y * TILE + TILE / 2)
 
 func _init_sprite() -> void:
-    _tex_down = _load_tex("res://assets/characters/duo_down.png")
-    _tex_up = _load_tex("res://assets/characters/duo_up.png")
-    _tex_side = _load_tex("res://assets/characters/duo_side.png")
-    var bike_tex := _load_tex("res://assets/props/bike.png")
-    if bike_tex:
-        _bike = Sprite2D.new()
-        _bike.texture = bike_tex
-        _bike.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-        _bike.scale = Vector2(0.4, 0.4)
-        _bike.position = Vector2(0, 1)
-        _bike.z_index = -1
-        _bike.visible = false
-        add_child(_bike)
-    if _tex_down == null and _tex_up == null and _tex_side == null:
-        return
+    _walk[Vector2i.DOWN] = _load_tex("res://assets/characters/duo_down.png")
+    _walk[Vector2i.UP] = _load_tex("res://assets/characters/duo_up.png")
+    _walk["side"] = _load_tex("res://assets/characters/duo_side.png")
+    _bike[Vector2i.DOWN] = _load_tex("res://assets/characters/tandem_down.png")
+    _bike[Vector2i.UP] = _load_tex("res://assets/characters/tandem_up.png")
+    _bike["side"] = _load_tex("res://assets/characters/tandem_side.png")
     _sprite = Sprite2D.new()
     _sprite.centered = true
     _sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-    _sprite.scale = Vector2(0.25, 0.25)
-    _sprite.position = Vector2(0, -5)
     add_child(_sprite)
     _update_sprite()
 
@@ -113,23 +102,28 @@ func _load_tex(path: String) -> Texture2D:
 func _update_sprite() -> void:
     if _sprite == null:
         return
-    if facing == Vector2i.UP and _tex_up:
-        _sprite.texture = _tex_up
-        _sprite.flip_h = false
-    elif facing == Vector2i.LEFT and _tex_side:
-        _sprite.texture = _tex_side
-        _sprite.flip_h = true
-    elif facing == Vector2i.RIGHT and _tex_side:
-        _sprite.texture = _tex_side
-        _sprite.flip_h = false
-    elif _tex_down:
-        _sprite.texture = _tex_down
-        _sprite.flip_h = false
+    var set_: Dictionary = _bike if _on_bike() else _walk
+    var flip := false
+    var tex: Texture2D = null
+    if facing == Vector2i.UP:
+        tex = set_.get(Vector2i.UP)
+    elif facing == Vector2i.LEFT:
+        tex = set_.get("side")
+        flip = true
+    elif facing == Vector2i.RIGHT:
+        tex = set_.get("side")
+    else:
+        tex = set_.get(Vector2i.DOWN)
+    if tex == null:
+        tex = set_.get(Vector2i.DOWN)
+    if tex == null:
+        return
+    _sprite.texture = tex
+    _sprite.flip_h = flip
+    var target_h: float = 34.0 if _on_bike() else 26.0
+    _sprite.scale = Vector2.ONE * (target_h / float(tex.get_height()))
+    _sprite.position = Vector2(0, -6.0 if _on_bike() else -5.0)
 
 func _draw() -> void:
     if _sprite != null:
         return
-    draw_rect(Rect2(-7, -14, 5, 12), Color(0.20, 0.36, 0.68))
-    draw_rect(Rect2(-7, -18, 5, 4), Color(0.80, 0.66, 0.52))
-    draw_rect(Rect2(1, -10, 5, 8), Color(0.78, 0.20, 0.20))
-    draw_rect(Rect2(1, -13, 5, 3), Color(0.95, 0.84, 0.70))

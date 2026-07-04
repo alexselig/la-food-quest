@@ -112,8 +112,9 @@ func _run() -> int:
     f += ck(GS5.on_bike == false, "starts off the bike")
     Wb.interact_at(Vector2i(16, 18))
     f += ck(GS5.on_bike == true, "interacting green bike mounts")
-    Wb.interact_at(Vector2i(16, 18))
-    f += ck(GS5.on_bike == false, "interacting green bike again dismounts")
+    f += ck(not Wb.objects_by_cell.has(Vector2i(16, 18)), "mounted bike disappears from the map")
+    Wb._dismount_bike()
+    f += ck(GS5.on_bike == false, "dismount (D) hops off the bike")
     GS5.free()
     Wb.free()
 

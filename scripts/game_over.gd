@@ -25,7 +25,7 @@ func _ready() -> void:
         add_child(tr)
     _label("GAME OVER", 126, 16, Color(1, 0.32, 0.32))
     _label("Alp & Xiao got run over on the bike!", 148, 8, Color(1, 0.92, 0.92))
-    _label("Press ENTER for the title", 162, 9, Color(0.75, 1.0, 0.75))
+    _label("Press ENTER to start over", 162, 9, Color(0.75, 1.0, 0.75))
 
 func _label(text: String, y: float, size: int, col: Color) -> void:
     var l := Label.new()
@@ -51,4 +51,4 @@ func _input(event: InputEvent) -> void:
         var gs := get_node_or_null("/root/GameState")
         if gs:
             gs.reset()
-        get_tree().change_scene_to_file("res://scenes/title.tscn")
+        get_tree().change_scene_to_file("res://scenes/world.tscn")
