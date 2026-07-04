@@ -7,8 +7,10 @@ const TILE := 16
 const COLS := 40
 const ROWS := 30
 
+const GridPlayerScript := preload("res://scripts/grid_player.gd")
+
 var blocked: Dictionary = {}   # Vector2i -> true
-var player: GridPlayer
+var player: Node2D
 
 func _ready() -> void:
     _build_world()
@@ -36,7 +38,7 @@ func _block_rect(x: int, y: int, w: int, h: int) -> void:
             blocked[Vector2i(i, j)] = true
 
 func _spawn_player() -> void:
-    player = (preload("res://scripts/grid_player.gd") as GDScript).new()
+    player = GridPlayerScript.new()
     add_child(player)
     player.setup(Vector2i(COLS / 2, ROWS / 2), Callable(self, "is_blocked"))
 
