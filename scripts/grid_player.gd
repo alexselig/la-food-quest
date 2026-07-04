@@ -10,6 +10,7 @@ var cell: Vector2i = Vector2i.ZERO
 var moving := false
 var facing := Vector2i.DOWN
 var is_blocked: Callable   # set by world: func(cell: Vector2i) -> bool
+var on_interact: Callable  # set by world: func(cell: Vector2i) -> void
 
 func setup(start_cell: Vector2i, blocked_check: Callable) -> void:
     cell = start_cell
@@ -20,6 +21,9 @@ func setup(start_cell: Vector2i, blocked_check: Callable) -> void:
 
 func _process(_delta: float) -> void:
     if moving:
+        return
+    if on_interact.is_valid() and Input.is_action_just_pressed("ui_accept"):
+        on_interact.call(facing_cell())
         return
     var dir := Vector2i.ZERO
     if Input.is_action_pressed("ui_up"):
