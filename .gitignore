@@ -10,3 +10,6 @@ secrets*
 
 # OS
 .DS_Store
+
+# capture harness
+_shot.*
