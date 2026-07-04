@@ -2,17 +2,22 @@ extends Control
 ## Title screen using the illustrated title art (assets/ui/title.png).
 ## ENTER starts a new run (-> intro), L loads a save.
 
+const VIEW := Vector2(320, 180)
+
 func _ready() -> void:
-    set_anchors_preset(Control.PRESET_FULL_RECT)
+    set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    size = VIEW
     var bg := ColorRect.new()
     bg.color = Color(0.02, 0.02, 0.04)
-    bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+    bg.position = Vector2.ZERO
+    bg.size = VIEW
     add_child(bg)
     var tex := _load_tex("res://assets/ui/title.png")
     if tex:
         var tr := TextureRect.new()
         tr.texture = tex
-        tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+        tr.position = Vector2.ZERO
+        tr.size = VIEW
         tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
         tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
         tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -20,7 +25,8 @@ func _ready() -> void:
     else:
         var l := Label.new()
         l.text = "LA FOOD QUEST\n\nPress ENTER to start"
-        l.set_anchors_preset(Control.PRESET_FULL_RECT)
+        l.position = Vector2.ZERO
+        l.size = VIEW
         l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
         l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
         add_child(l)
