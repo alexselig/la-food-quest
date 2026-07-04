@@ -1,31 +1,35 @@
 extends Control
-## Title screen: start a new run or load a save.
+## Title screen using the illustrated title art (assets/ui/title.png).
+## ENTER starts a new run (-> intro), L loads a save.
 
 func _ready() -> void:
     set_anchors_preset(Control.PRESET_FULL_RECT)
     var bg := ColorRect.new()
-    bg.color = Color(0.11, 0.13, 0.20)
+    bg.color = Color(0.02, 0.02, 0.04)
     bg.set_anchors_preset(Control.PRESET_FULL_RECT)
     add_child(bg)
-    _label("LA FOOD QUEST", 50, 18)
-    _label("Alp & Xiao's LA Food Adventure", 78, 8)
-    _label("Press ENTER to start", 116, 9)
-    var gs := get_node_or_null("/root/GameState")
-    if gs and gs.has_save():
-        _label("Press L to load your save", 132, 8)
-    _label("Arrows: move     Space/Enter: interact     Esc: pause", 160, 7)
+    var tex := _load_tex("res://assets/ui/title.png")
+    if tex:
+        var tr := TextureRect.new()
+        tr.texture = tex
+        tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+        tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+        tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+        tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+        add_child(tr)
+    else:
+        var l := Label.new()
+        l.text = "LA FOOD QUEST\n\nPress ENTER to start"
+        l.set_anchors_preset(Control.PRESET_FULL_RECT)
+        l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+        l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+        add_child(l)
 
-func _label(text: String, y: float, size: int) -> void:
-    var l := Label.new()
-    l.text = text
-    l.position = Vector2(10, y)
-    l.size = Vector2(300, size + 6)
-    l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    l.add_theme_font_size_override("font_size", size)
-    l.add_theme_color_override("font_color", Color(1, 1, 1))
-    l.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-    l.add_theme_constant_override("outline_size", 3)
-    add_child(l)
+func _load_tex(path: String) -> Texture2D:
+    var img := Image.new()
+    if img.load(path) == OK:
+        return ImageTexture.create_from_image(img)
+    return null
 
 func _input(event: InputEvent) -> void:
     if event.is_action_pressed("ui_accept"):
