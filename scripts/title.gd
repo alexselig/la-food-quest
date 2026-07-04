@@ -49,4 +49,4 @@ func _start_new() -> void:
     var gs := get_node_or_null("/root/GameState")
     if gs:
         gs.reset()
-    get_tree().change_scene_to_file("res://scenes/intro.tscn")
+    get_tree().change_scene_to_file("res://scenes/world.tscn")

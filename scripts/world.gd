@@ -1,11 +1,12 @@
 extends Node2D
-## City neighborhood: pavement sidewalks + asphalt roads (no grass), multi-tile buildings
-## and parks that BLOCK movement, each restaurant with its own matching sprite. Interaction
-## triggers from any footprint cell. Spawns the duo, camera, HUD, and celebratory FX.
+## Dense city: pavement sidewalks + asphalt roads (no grass). Blocks are packed with
+## flat 8-bit buildings that block movement; restaurants/parks/home/legendary/NPC sit on
+## block edges facing the sidewalks. Cars drive the roads. Spawns duo, camera, HUD, FX.
 
 const TILE := 16
 const COLS := 40
 const ROWS := 30
+const SPAWN := Vector2i(18, 18)
 
 const GridPlayerScript := preload("res://scripts/grid_player.gd")
 const HudScript := preload("res://scripts/hud.gd")
@@ -13,24 +14,26 @@ const PauseMenuScript := preload("res://scripts/pause_menu.gd")
 const CarScript := preload("res://scripts/car.gd")
 const GameOverScript := preload("res://scripts/game_over.gd")
 
-const H_ROADS: Array[int] = [8, 19]   # each occupies row r and r+1
-const V_ROADS: Array[int] = [13, 26]  # each occupies col c and c+1
+const H_ROADS: Array[int] = [8, 19]
+const V_ROADS: Array[int] = [13, 26]
+const FILLERS: Array[String] = ["fill_apartment_a", "fill_apartment_b", "fill_office", "fill_shop_a", "fill_shop_b", "fill_house"]
 
 var blocked: Dictionary = {}
 var roads: Dictionary = {}
+var sidewalk: Dictionary = {}
 var objects: Array = []
 var objects_by_cell: Dictionary = {}
 var player: Node2D
 var hud: CanvasLayer
 var gs: Node
+var cars: Array = []
+var _over := false
 
 var _pavement: Texture2D
 var _asphalt: Texture2D
 var _wall: Texture2D
 var _star: Texture2D
 var _sprites: Dictionary = {}
-var cars: Array = []
-var _over := false
 
 func _ready() -> void:
     gs = get_node_or_null("/root/GameState")
@@ -49,7 +52,8 @@ func _load_textures() -> void:
     _asphalt = _tex("res://assets/tiles/asphalt.png")
     _wall = _tex("res://assets/tiles/wall.png")
     _star = _tex("res://assets/fx/star.png")
-    for id in ["taco", "boba", "ramen", "diner", "dumpling", "golden_ladle", "home"]:
+    var ids := ["taco", "boba", "ramen", "diner", "dumpling", "golden_ladle", "home"] + FILLERS
+    for id in ids:
         _sprites[id] = _tex("res://assets/buildings/%s.png" % id)
     _sprites["park"] = _tex("res://assets/buildings/park.png")
     _sprites["npc"] = _tex("res://assets/props/npc.png")
@@ -77,20 +81,26 @@ func _build_world() -> void:
         for y in range(1, ROWS - 1):
             roads[Vector2i(cc, y)] = true
             roads[Vector2i(cc + 1, y)] = true
+    for cell in roads.keys():
+        for d in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+            var n: Vector2i = cell + d
+            if n.x > 0 and n.y > 0 and n.x < COLS - 1 and n.y < ROWS - 1 and not roads.has(n):
+                sidewalk[n] = true
     _place_objects()
+    _fill_buildings()
 
 func _place_objects() -> void:
-    _place(2, 3, 3, 2, {"type": "restaurant", "id": "taco", "name": "Taco Truck", "power": 20, "fullness": 35.0})
-    _place(9, 3, 2, 2, {"type": "restaurant", "id": "boba", "name": "Boba Shop", "power": 20, "fullness": 30.0})
-    _place(17, 3, 2, 2, {"type": "restaurant", "id": "dumpling", "name": "Dumpling House", "power": 20, "fullness": 40.0})
-    _place(22, 3, 2, 2, {"type": "restaurant", "id": "ramen", "name": "Ramen Bar", "power": 25, "fullness": 40.0})
-    _place(29, 3, 3, 2, {"type": "restaurant", "id": "diner", "name": "Burger Diner", "power": 25, "fullness": 45.0})
-    _place(2, 12, 2, 2, {"type": "rest_home", "id": "home", "name": "Home"})
-    _place(8, 12, 4, 3, {"type": "exercise", "id": "park", "name": "Echo Park", "fullness": 35.0, "energy": 20.0, "mins": 60})
-    _place(16, 12, 4, 3, {"type": "exercise", "id": "park", "name": "Sunset Park", "fullness": 45.0, "energy": 30.0, "mins": 60})
-    _place(5, 24, 1, 1, {"type": "rest_bench", "id": "bench", "name": "Bus Bench", "energy": 25.0, "mins": 90})
-    _place(20, 16, 1, 1, {"type": "npc", "id": "critic", "name": "Remy the Critic"})
-    _place(29, 23, 3, 3, {"type": "legendary", "id": "golden_ladle", "name": "The Golden Ladle"})
+    _place(2, 5, 3, 2, {"type": "restaurant", "id": "taco", "name": "Taco Truck", "power": 20, "fullness": 35.0})
+    _place(6, 5, 2, 2, {"type": "restaurant", "id": "boba", "name": "Boba Shop", "power": 20, "fullness": 30.0})
+    _place(9, 5, 2, 2, {"type": "restaurant", "id": "ramen", "name": "Ramen Bar", "power": 25, "fullness": 40.0})
+    _place(16, 5, 2, 2, {"type": "restaurant", "id": "dumpling", "name": "Dumpling House", "power": 20, "fullness": 40.0})
+    _place(20, 5, 3, 2, {"type": "restaurant", "id": "diner", "name": "Burger Diner", "power": 25, "fullness": 45.0})
+    _place(30, 5, 2, 2, {"type": "rest_home", "id": "home", "name": "Home"})
+    _place(2, 11, 4, 3, {"type": "exercise", "id": "park", "name": "Echo Park", "fullness": 35.0, "energy": 20.0, "mins": 60})
+    _place(16, 11, 4, 3, {"type": "exercise", "id": "park", "name": "Sunset Park", "fullness": 45.0, "energy": 30.0, "mins": 60})
+    _place(5, 17, 1, 1, {"type": "rest_bench", "id": "bench", "name": "Bus Bench", "energy": 25.0, "mins": 90})
+    _place(18, 17, 1, 1, {"type": "npc", "id": "critic", "name": "Remy the Critic"})
+    _place(29, 22, 3, 3, {"type": "legendary", "id": "golden_ladle", "name": "The Golden Ladle"})
 
 func _place(x: int, y: int, w: int, h: int, o: Dictionary) -> void:
     o["rect"] = Rect2i(x, y, w, h)
@@ -101,10 +111,39 @@ func _place(x: int, y: int, w: int, h: int, o: Dictionary) -> void:
             objects_by_cell[c] = o
             blocked[c] = true
 
+func _fill_buildings() -> void:
+    var idx := 0
+    for ay in range(1, ROWS - 2, 2):
+        for ax in range(1, COLS - 2, 2):
+            var ok := true
+            for i in range(2):
+                for j in range(2):
+                    if not _buildable(Vector2i(ax + i, ay + j)):
+                        ok = false
+            if not ok:
+                continue
+            var o := {"type": "filler", "id": FILLERS[idx % FILLERS.size()], "rect": Rect2i(ax, ay, 2, 2)}
+            idx += 1
+            objects.append(o)
+            for i in range(2):
+                for j in range(2):
+                    var c := Vector2i(ax + i, ay + j)
+                    objects_by_cell[c] = o
+                    blocked[c] = true
+
+func _buildable(cell: Vector2i) -> bool:
+    if cell.x < 1 or cell.y < 1 or cell.x >= COLS - 1 or cell.y >= ROWS - 1:
+        return false
+    if roads.has(cell) or sidewalk.has(cell) or blocked.has(cell) or objects_by_cell.has(cell):
+        return false
+    if cell == SPAWN:
+        return false
+    return true
+
 func _spawn_player() -> void:
     player = GridPlayerScript.new()
     add_child(player)
-    player.setup(Vector2i(18, 16), Callable(self, "is_blocked"))
+    player.setup(SPAWN, Callable(self, "is_blocked"))
     player.on_interact = Callable(self, "_on_interact")
 
 func is_blocked(cell: Vector2i) -> bool:
@@ -182,20 +221,6 @@ func _celebrate(text: String) -> void:
     tl.tween_property(lbl, "modulate:a", 0.0, 0.75)
     tl.chain().tween_callback(root.queue_free)
 
-func _setup_camera() -> void:
-    var cam := Camera2D.new()
-    player.add_child(cam)
-    cam.limit_left = 0
-    cam.limit_top = 0
-    cam.limit_right = COLS * TILE
-    cam.limit_bottom = ROWS * TILE
-    cam.make_current()
-
-func _setup_hud() -> void:
-    hud = HudScript.new()
-    add_child(hud)
-    add_child(PauseMenuScript.new())
-
 func _spawn_cars() -> void:
     var tex: Texture2D = _sprites.get("car", null)
     var lo := float(TILE)
@@ -227,6 +252,20 @@ func _trigger_game_over() -> void:
     _over = true
     add_child(GameOverScript.new())
     get_tree().paused = true
+
+func _setup_camera() -> void:
+    var cam := Camera2D.new()
+    player.add_child(cam)
+    cam.limit_left = 0
+    cam.limit_top = 0
+    cam.limit_right = COLS * TILE
+    cam.limit_bottom = ROWS * TILE
+    cam.make_current()
+
+func _setup_hud() -> void:
+    hud = HudScript.new()
+    add_child(hud)
+    add_child(PauseMenuScript.new())
 
 func _draw() -> void:
     for x in COLS:
@@ -275,16 +314,16 @@ func _draw_object(o: Dictionary) -> void:
     if tex == null:
         draw_rect(Rect2(px, py, pw, ph), Color(0.5, 0.5, 0.55))
         return
-    if t == "exercise":
-        draw_texture_rect(tex, Rect2(px, py, pw, ph), false)
-    else:
+    if t == "npc" or t == "rest_bench":
         var sc := float(pw) / float(tex.get_width())
         var th := tex.get_height() * sc
         draw_texture_rect(tex, Rect2(px, (py + ph) - th, pw, th), false)
+    else:
+        draw_texture_rect(tex, Rect2(px, py, pw, ph), false)
 
 func _sprite_for(o: Dictionary) -> Texture2D:
     var t: String = o["type"]
-    if t == "restaurant" or t == "rest_home" or t == "legendary":
+    if t == "restaurant" or t == "rest_home" or t == "legendary" or t == "filler":
         return _sprites.get(o["id"], null)
     if t == "exercise":
         return _sprites.get("park", null)

@@ -4,7 +4,6 @@ extends SceneTree
 
 const GameStateScript := preload("res://scripts/game_state.gd")
 const WorldScript := preload("res://scripts/world.gd")
-const _Intro := preload("res://scripts/intro.gd")
 const _Title := preload("res://scripts/title.gd")
 const _Car := preload("res://scripts/car.gd")
 const _GameOver := preload("res://scripts/game_over.gd")
@@ -80,8 +79,8 @@ func _run() -> int:
     var W = WorldScript.new()
     W._build_world()
     f += ck(W.is_blocked(Vector2i(0, 0)) == true, "border is blocked")
-    f += ck(W.is_blocked(Vector2i(2, 3)) == true, "building footprint cell is blocked")
-    f += ck(W.is_blocked(Vector2i(5, 5)) == false, "open sidewalk is walkable")
+    f += ck(W.is_blocked(Vector2i(2, 5)) == true, "building footprint cell is blocked")
+    f += ck(W.is_blocked(Vector2i(3, 7)) == false, "open sidewalk is walkable")
     f += ck(W.is_blocked(Vector2i(20, 8)) == false, "road is walkable")
     f += ck(W.is_blocked(Vector2i(-1, 5)) == true, "out-of-bounds is blocked")
 
@@ -89,21 +88,52 @@ func _run() -> int:
     var GS2 = GameStateScript.new()
     W.gs = GS2
     GS2.set_quest_state(GameStateScript.Quest.ACTIVE)
-    var m1 = W.interact_at(Vector2i(2, 3))   # Taco Truck
+    var m1 = W.interact_at(Vector2i(2, 5))   # Taco Truck
     f += ck(GS2.power == 20 and GS2.discovered.has("taco"), "restaurant interact raises power + discovers")
     f += ck(m1.begins_with("Discovered"), "restaurant discovery toast")
     GS2.fullness = 90.0
-    var m2 = W.interact_at(Vector2i(2, 3))
+    var m2 = W.interact_at(Vector2i(2, 5))
     f += ck("Too full" in m2, "restaurant blocked when too full")
     var full0 = GS2.fullness
-    W.interact_at(Vector2i(8, 12))           # Echo Park exercise
+    W.interact_at(Vector2i(2, 11))           # Echo Park exercise
     f += ck(GS2.fullness < full0, "exercise interact lowers fullness")
-    W.interact_at(Vector2i(29, 23))          # Legendary while locked
+    W.interact_at(Vector2i(29, 22))          # Legendary while locked
     f += ck(GS2.quest_state != GameStateScript.Quest.COMPLETE, "legendary locked below threshold")
     GS2.set_quest_state(GameStateScript.Quest.UNLOCKED)
-    var mwin = W.interact_at(Vector2i(29, 23))
+    var mwin = W.interact_at(Vector2i(29, 22))
     f += ck(GS2.quest_state == GameStateScript.Quest.COMPLETE and ("WIN" in mwin), "legendary wins when unlocked")
     GS2.free()
+
+    # --- reachability: every interactive object reachable from spawn ---
+    var W2 = WorldScript.new()
+    W2._build_world()
+    var reach := {}
+    var q: Array = [W2.SPAWN]
+    reach[W2.SPAWN] = true
+    while not q.is_empty():
+        var cur = q.pop_back()
+        for dd in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+            var nn = cur + dd
+            if not W2.is_blocked(nn) and not reach.has(nn):
+                reach[nn] = true
+                q.append(nn)
+    var unreachable := 0
+    for o in W2.objects:
+        if o["type"] == "filler":
+            continue
+        var okr := false
+        var rr = o["rect"]
+        for ix in range(rr.position.x, rr.position.x + rr.size.x):
+            for jy in range(rr.position.y, rr.position.y + rr.size.y):
+                for dd in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+                    if reach.has(Vector2i(ix, jy) + dd):
+                        okr = true
+        if not okr:
+            unreachable += 1
+            printerr("  unreachable: ", o.get("name", o["id"]))
+    f += ck(W2.is_blocked(W2.SPAWN) == false, "spawn is walkable")
+    f += ck(unreachable == 0, "all interactive objects reachable from spawn")
+    W2.free()
 
     # --- save / load ---
     var GS3 = GameStateScript.new()
