@@ -1,14 +1,19 @@
 extends Node2D
-## A car that drives along a road lane and wraps around the map. The world checks
-## car-vs-player overlap and triggers game over on contact. axis 0 = horizontal, 1 = vertical.
-## Car art points up (north); it is rotated to face its travel direction.
+## A car that drives a road lane and wraps around. Only ACTIVE/visible while the player is
+## on the green bike (cars appear only then). Runs the player over on contact (world checks).
+## Car art points up (north); rotated to face travel direction.
 
 var axis := 0
 var dir := 1
 var speed := 46.0
 var lo := 0.0
 var hi := 640.0
+var active := false
 var _spr: Sprite2D
+
+func set_active(v: bool) -> void:
+    active = v
+    visible = v
 
 func setup(tex: Texture2D, a: int, d: int, lane: float, start: float, spd: float, lo_: float, hi_: float) -> void:
     axis = a
@@ -17,6 +22,7 @@ func setup(tex: Texture2D, a: int, d: int, lane: float, start: float, spd: float
     lo = lo_
     hi = hi_
     z_index = 8
+    visible = false
     _spr = Sprite2D.new()
     _spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
     _spr.scale = Vector2(0.5, 0.5)
@@ -37,6 +43,8 @@ func setup(tex: Texture2D, a: int, d: int, lane: float, start: float, spd: float
         position = Vector2(lane, start)
 
 func _process(delta: float) -> void:
+    if not active:
+        return
     if axis == 0:
         position.x += dir * speed * delta
         if dir > 0 and position.x > hi:

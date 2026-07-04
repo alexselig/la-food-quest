@@ -45,6 +45,8 @@ func _ready() -> void:
     _setup_hud()
     if gs and gs.quest_state == 0:
         gs.set_quest_state(1)
+    if gs:
+        gs.bike_changed.connect(_on_bike_changed)
     queue_redraw()
 
 func _load_textures() -> void:
@@ -59,6 +61,7 @@ func _load_textures() -> void:
     _sprites["npc"] = _tex("res://assets/props/npc.png")
     _sprites["bench"] = _tex("res://assets/props/bench.png")
     _sprites["car"] = _tex("res://assets/props/car.png")
+    _sprites["bike"] = _tex("res://assets/props/bike.png")
 
 func _tex(path: String) -> Texture2D:
     var img := Image.new()
@@ -101,6 +104,9 @@ func _place_objects() -> void:
     _place(5, 17, 1, 1, {"type": "rest_bench", "id": "bench", "name": "Bus Bench", "energy": 25.0, "mins": 90})
     _place(18, 17, 1, 1, {"type": "npc", "id": "critic", "name": "Remy the Critic"})
     _place(29, 22, 3, 3, {"type": "legendary", "id": "golden_ladle", "name": "The Golden Ladle"})
+    _place(16, 18, 1, 1, {"type": "bike", "id": "bike", "name": "Green Bike"})
+    _place(12, 10, 1, 1, {"type": "bike", "id": "bike", "name": "Green Bike"})
+    _place(28, 21, 1, 1, {"type": "bike", "id": "bike", "name": "Green Bike"})
 
 func _place(x: int, y: int, w: int, h: int, o: Dictionary) -> void:
     o["rect"] = Rect2i(x, y, w, h)
@@ -153,6 +159,9 @@ func is_blocked(cell: Vector2i) -> bool:
 
 func _on_interact(cell: Vector2i) -> void:
     var msg := interact_at(cell)
+    if msg == "" and gs != null and gs.on_bike and not objects_by_cell.has(cell):
+        gs.set_bike(false)
+        msg = "Hopped off the bike. The streets are calm again."
     if msg != "" and hud:
         hud.toast(msg)
 
@@ -188,6 +197,11 @@ func interact_at(cell: Vector2i) -> String:
                 _celebrate("YOU WIN!")
                 return "You found THE GOLDEN LADLE! Alp & Xiao feast like kings. YOU WIN!"
             return "The Golden Ladle stays hidden... reach 100 PWR first to prove yourselves."
+        "bike":
+            gs.set_bike(not gs.on_bike)
+            if gs.on_bike:
+                return "Hopped on the green bike! Move 2 tiles at a time - but now the cars are out. Dodge them!"
+            return "Parked the bike. The streets are calm again."
     return ""
 
 func _celebrate(text: String) -> void:
@@ -237,10 +251,15 @@ func _add_car(tex: Texture2D, a: int, d: int, lane: float, start: float, spd: fl
     var car = CarScript.new()
     add_child(car)
     car.setup(tex, a, d, lane, start, spd, car_lo, car_hi)
+    car.set_active(false)
     cars.append(car)
 
+func _on_bike_changed(on: bool) -> void:
+    for car in cars:
+        car.set_active(on)
+
 func _process(_delta: float) -> void:
-    if _over or player == null:
+    if _over or player == null or gs == null or not gs.on_bike:
         return
     var pp: Vector2 = player.position
     for car in cars:
@@ -280,11 +299,11 @@ func _draw() -> void:
                 _blit(_pavement, rect, Color(0.69, 0.68, 0.66))
     _draw_road_lines()
     for o in objects:
-        if o["type"] != "npc" and o["type"] != "rest_bench":
+        if not (o["type"] in ["npc", "rest_bench", "bike"]):
             _draw_object(o)
-    # props (NPC, bench) drawn last so they sit ON TOP of nearby buildings
+    # props (NPC, bench, bike) drawn last so they sit ON TOP of nearby buildings
     for o in objects:
-        if o["type"] == "npc" or o["type"] == "rest_bench":
+        if o["type"] in ["npc", "rest_bench", "bike"]:
             _draw_object(o)
 
 func _blit(tex: Texture2D, rect: Rect2, fallback: Color) -> void:
@@ -319,7 +338,7 @@ func _draw_object(o: Dictionary) -> void:
     if tex == null:
         draw_rect(Rect2(px, py, pw, ph), Color(0.5, 0.5, 0.55))
         return
-    if t == "npc" or t == "rest_bench":
+    if t == "npc" or t == "rest_bench" or t == "bike":
         var sc := float(pw) / float(tex.get_width())
         var th := tex.get_height() * sc
         draw_texture_rect(tex, Rect2(px, (py + ph) - th, pw, th), false)
@@ -336,4 +355,6 @@ func _sprite_for(o: Dictionary) -> Texture2D:
         return _sprites.get("npc", null)
     if t == "rest_bench":
         return _sprites.get("bench", null)
+    if t == "bike":
+        return _sprites.get("bike", null)
     return null

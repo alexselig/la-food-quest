@@ -7,6 +7,7 @@ signal time_changed
 signal restaurant_discovered(id)
 signal quest_changed(state)
 signal collapsed
+signal bike_changed(on)
 
 # --- Meters (shared by the duo) ---
 var power: int = 0            # progression; never decreases
@@ -26,6 +27,7 @@ var day: int = 1
 enum Quest { NOT_GIVEN, ACTIVE, UNLOCKED, COMPLETE }
 var quest_state: int = Quest.NOT_GIVEN
 var discovered: Dictionary = {}   # restaurant_id -> true
+var on_bike := false
 
 func reset() -> void:
     power = 0
@@ -35,8 +37,10 @@ func reset() -> void:
     day = 1
     quest_state = Quest.NOT_GIVEN
     discovered.clear()
+    on_bike = false
     meters_changed.emit()
     time_changed.emit()
+    bike_changed.emit(false)
 
 # --- Eating ---
 func can_eat() -> bool:
@@ -109,6 +113,12 @@ func _check_quest_unlock() -> void:
 func set_quest_state(s: int) -> void:
     quest_state = s
     quest_changed.emit(quest_state)
+
+func set_bike(v: bool) -> void:
+    if on_bike == v:
+        return
+    on_bike = v
+    bike_changed.emit(on_bike)
 
 func clock_string() -> String:
     return "Day %d  %02d:%02d" % [day, minutes / 60, minutes % 60]

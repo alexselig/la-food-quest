@@ -104,6 +104,19 @@ func _run() -> int:
     f += ck(GS2.quest_state == GameStateScript.Quest.COMPLETE and ("WIN" in mwin), "legendary wins when unlocked")
     GS2.free()
 
+    # --- green bike: mount/dismount toggles GameState.on_bike ---
+    var GS5 = GameStateScript.new()
+    var Wb = WorldScript.new()
+    Wb.gs = GS5
+    Wb._build_world()
+    f += ck(GS5.on_bike == false, "starts off the bike")
+    Wb.interact_at(Vector2i(16, 18))
+    f += ck(GS5.on_bike == true, "interacting green bike mounts")
+    Wb.interact_at(Vector2i(16, 18))
+    f += ck(GS5.on_bike == false, "interacting green bike again dismounts")
+    GS5.free()
+    Wb.free()
+
     # --- reachability: every interactive object reachable from spawn ---
     var W2 = WorldScript.new()
     W2._build_world()
