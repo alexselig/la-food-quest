@@ -5,8 +5,6 @@ extends Control
 const VIEW := Vector2(320, 180)
 
 func _ready() -> void:
-    set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-    size = VIEW
     var bg := ColorRect.new()
     bg.color = Color(0.02, 0.02, 0.04)
     bg.position = Vector2.ZERO
@@ -15,12 +13,12 @@ func _ready() -> void:
     var tex := _load_tex("res://assets/ui/title.png")
     if tex:
         var tr := TextureRect.new()
-        tr.texture = tex
-        tr.position = Vector2.ZERO
-        tr.size = VIEW
         tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
         tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
         tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+        tr.texture = tex
+        tr.position = Vector2.ZERO
+        tr.size = VIEW
         add_child(tr)
     else:
         var l := Label.new()
