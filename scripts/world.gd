@@ -17,9 +17,13 @@ var objects_by_cell: Dictionary = {}  # Vector2i -> object dict
 var player: Node2D
 var hud: CanvasLayer
 var gs: Node                          # GameState autoload (injected in tests)
+var _grass: Texture2D
+var _building: Texture2D
 
 func _ready() -> void:
     gs = get_node_or_null("/root/GameState")
+    _grass = _load_tex("res://assets/tiles/grass.png")
+    _building = _load_tex("res://assets/tiles/building.png")
     _build_world()
     _spawn_player()
     _setup_camera()
@@ -65,6 +69,12 @@ func is_blocked(cell: Vector2i) -> bool:
     if cell.x < 0 or cell.y < 0 or cell.x >= COLS or cell.y >= ROWS:
         return true
     return blocked.has(cell)
+
+func _load_tex(path: String) -> Texture2D:
+    var img := Image.new()
+    if img.load(path) == OK:
+        return ImageTexture.create_from_image(img)
+    return null
 
 func _on_interact(cell: Vector2i) -> void:
     var msg := interact_at(cell)
@@ -122,16 +132,20 @@ func _draw() -> void:
     for x in COLS:
         for y in ROWS:
             var cell := Vector2i(x, y)
-            var c := Color(0.30, 0.55, 0.32)
+            var rect := Rect2(x * TILE, y * TILE, TILE, TILE)
+            if _grass:
+                draw_texture_rect(_grass, rect, false)
+            else:
+                draw_rect(rect, Color(0.30, 0.55, 0.32))
             if blocked.has(cell) and not objects_by_cell.has(cell):
-                c = Color(0.46, 0.41, 0.39)
-            draw_rect(Rect2(x * TILE, y * TILE, TILE, TILE), c)
+                draw_rect(rect, Color(0.12, 0.22, 0.14, 0.55))  # border hedge
     for cell in objects_by_cell:
         var o = objects_by_cell[cell]
-        var r := Rect2(cell.x * TILE, cell.y * TILE, TILE, TILE)
-        draw_rect(r, o["color"])
-        draw_rect(r, Color(0, 0, 0, 0.6), false, 1.0)
-    for x in range(COLS + 1):
-        draw_line(Vector2(x * TILE, 0), Vector2(x * TILE, ROWS * TILE), Color(0, 0, 0, 0.08))
-    for y in range(ROWS + 1):
-        draw_line(Vector2(0, y * TILE), Vector2(COLS * TILE, y * TILE), Color(0, 0, 0, 0.08))
+        var base := Rect2(cell.x * TILE, cell.y * TILE, TILE, TILE)
+        var t: String = o["type"]
+        if _building and (t == "restaurant" or t == "rest_home" or t == "legendary"):
+            var r := Rect2(cell.x * TILE - 3, cell.y * TILE - 8, TILE + 6, TILE + 8)
+            draw_texture_rect(_building, r, false, Color(o["color"]).lerp(Color(1, 1, 1), 0.35))
+        else:
+            draw_rect(base, o["color"])
+            draw_rect(base, Color(0, 0, 0, 0.6), false, 1.0)

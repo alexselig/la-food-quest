@@ -12,11 +12,17 @@ var facing := Vector2i.DOWN
 var is_blocked: Callable   # set by world: func(cell: Vector2i) -> bool
 var on_interact: Callable  # set by world: func(cell: Vector2i) -> void
 
+var _sprite: Sprite2D
+var _tex_down: Texture2D
+var _tex_up: Texture2D
+var _tex_side: Texture2D
+
 func setup(start_cell: Vector2i, blocked_check: Callable) -> void:
     cell = start_cell
     is_blocked = blocked_check
     position = _cell_to_pos(cell)
     z_index = 10
+    _init_sprite()
     queue_redraw()
 
 func _process(_delta: float) -> void:
@@ -36,6 +42,7 @@ func _process(_delta: float) -> void:
         dir = Vector2i.RIGHT
     if dir != Vector2i.ZERO:
         facing = dir
+        _update_sprite()
         _try_move(dir)
 
 func _try_move(dir: Vector2i) -> void:
@@ -54,7 +61,45 @@ func facing_cell() -> Vector2i:
 func _cell_to_pos(c: Vector2i) -> Vector2:
     return Vector2(c.x * TILE + TILE / 2, c.y * TILE + TILE / 2)
 
+func _init_sprite() -> void:
+    _tex_down = _load_tex("res://assets/characters/duo_down.png")
+    _tex_up = _load_tex("res://assets/characters/duo_up.png")
+    _tex_side = _load_tex("res://assets/characters/duo_side.png")
+    if _tex_down == null and _tex_up == null and _tex_side == null:
+        return
+    _sprite = Sprite2D.new()
+    _sprite.centered = true
+    _sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+    _sprite.scale = Vector2(0.25, 0.25)
+    _sprite.position = Vector2(0, -5)
+    add_child(_sprite)
+    _update_sprite()
+
+func _load_tex(path: String) -> Texture2D:
+    var img := Image.new()
+    if img.load(path) == OK:
+        return ImageTexture.create_from_image(img)
+    return null
+
+func _update_sprite() -> void:
+    if _sprite == null:
+        return
+    if facing == Vector2i.UP and _tex_up:
+        _sprite.texture = _tex_up
+        _sprite.flip_h = false
+    elif facing == Vector2i.LEFT and _tex_side:
+        _sprite.texture = _tex_side
+        _sprite.flip_h = true
+    elif facing == Vector2i.RIGHT and _tex_side:
+        _sprite.texture = _tex_side
+        _sprite.flip_h = false
+    elif _tex_down:
+        _sprite.texture = _tex_down
+        _sprite.flip_h = false
+
 func _draw() -> void:
+    if _sprite != null:
+        return
     # Placeholder duo: tall Alp (blue) + short Xiao (red), centered on the tile.
     # Alp
     draw_rect(Rect2(-7, -14, 5, 12), Color(0.20, 0.36, 0.68))   # jacket
