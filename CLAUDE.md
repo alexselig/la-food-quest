@@ -37,6 +37,15 @@ Eat to power up, exercise to avoid getting too full (can't eat while full), rest
 - Run: `godot --path ~/la-food-quest`
 - Editor (triggers reimport): `godot --editor --path ~/la-food-quest`
 - Headless smoke test: `godot --headless --path ~/la-food-quest --quit`
+- Run logic tests: `godot --headless --path ~/la-food-quest -s res://test/logic_test.gd`
+- Generate art (Gemini): `python3 tools/gen_art.py` (duo sprite + grass/building tiles; props in assets/props/).
+- Sprites/tiles are loaded at runtime via `Image.load` (see `_load_tex`), so no editor reimport is required to run from source.
+
+## Controls
+Arrows: move · Space/Enter: interact · Esc: pause (S save, Q quit to title).
+Goal: an NPC sends Alp & Xiao to find The Golden Ladle — eat around town to reach 100 PWR (it unlocks),
+then enter it to win. Eating raises Fullness (can't eat above 70 — exercise it down); actions/time drain
+Energy (rest, or hit 0 and lose ~a day).
 
 ## Git identity
 Personal project — commit as: Alex Selig <alexselig@Alexs-MacBook-Pro.local> (set as local git config).
