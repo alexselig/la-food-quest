@@ -280,7 +280,12 @@ func _draw() -> void:
                 _blit(_pavement, rect, Color(0.69, 0.68, 0.66))
     _draw_road_lines()
     for o in objects:
-        _draw_object(o)
+        if o["type"] != "npc" and o["type"] != "rest_bench":
+            _draw_object(o)
+    # props (NPC, bench) drawn last so they sit ON TOP of nearby buildings
+    for o in objects:
+        if o["type"] == "npc" or o["type"] == "rest_bench":
+            _draw_object(o)
 
 func _blit(tex: Texture2D, rect: Rect2, fallback: Color) -> void:
     if tex:
