@@ -20,7 +20,7 @@ func _ready() -> void:
         tr.size = VIEW
         tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
         tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-        tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+        tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
         add_child(tr)
     else:
         var l := Label.new()

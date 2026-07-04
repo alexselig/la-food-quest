@@ -16,7 +16,7 @@ func _ready() -> void:
         tr.size = Vector2(320, 104)
         tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
         tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-        tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+        tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
         tr.clip_contents = true
         add_child(tr)
 
