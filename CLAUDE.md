@@ -49,3 +49,9 @@ Energy (rest, or hit 0 and lose ~a day).
 
 ## Git identity
 Personal project — commit as: Alex Selig <alexselig@Alexs-MacBook-Pro.local> (set as local git config).
+
+## Play online / Deploy (GitHub Pages)
+- Live: https://alexselig.github.io/la-food-quest/  (public repo, served from `main` /docs).
+- The "Web" export preset is SINGLE-THREADED (variant/thread_support=false) so it runs on GitHub Pages (no COOP/COEP headers needed). Do not enable threads.
+- Re-deploy after changes: `godot --headless --path . --export-release "Web" docs/index.html`, then commit + push `docs/`. (GitHub Pages rebuilds automatically in ~1 min.)
+- Requires the Godot 4.6.1 web export templates installed (Godot_v4.6.1-stable_export_templates.tpz).
