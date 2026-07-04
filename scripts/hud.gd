@@ -1,9 +1,10 @@
 extends CanvasLayer
-## Readable HUD: Fullness / Energy bars, Power/goal, clock, and an auto-sizing toast panel
-## that grows to fit multi-line messages (never overflows its background).
+## HUD: Fullness / Energy gauges (exact-size ColorRect bars), Power/goal, clock, and an
+## auto-sizing toast panel that grows to fit multi-line messages.
 
-var _full: ProgressBar
-var _energy: ProgressBar
+const BAR_W := 78.0
+var _full: ColorRect
+var _energy: ColorRect
 var _power_lbl: Label
 var _clock_lbl: Label
 var _toast_panel: PanelContainer
@@ -20,13 +21,13 @@ func _ready() -> void:
     var panel := ColorRect.new()
     panel.color = Color(0, 0, 0, 0.45)
     panel.position = Vector2(2, 2)
-    panel.size = Vector2(122, 38)
+    panel.size = Vector2(124, 42)
     root.add_child(panel)
     _label(root, Vector2(6, 3), "FULL", 9)
-    _full = _bar(root, Vector2(40, 5), Color(0.95, 0.62, 0.20))
-    _label(root, Vector2(6, 15), "NRG", 9)
-    _energy = _bar(root, Vector2(40, 17), Color(0.35, 0.80, 0.42))
-    _power_lbl = _label(root, Vector2(6, 27), "PWR 0 / 100", 10)
+    _full = _bar(root, Vector2(42, 5), Color(0.95, 0.62, 0.20))
+    _label(root, Vector2(6, 16), "NRG", 9)
+    _energy = _bar(root, Vector2(42, 18), Color(0.35, 0.80, 0.42))
+    _power_lbl = _label(root, Vector2(6, 29), "PWR 0 / 100", 10)
     _clock_lbl = _label(root, Vector2(196, 4), "Day 1  08:00", 10)
     _clock_lbl.size = Vector2(120, 14)
     _clock_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -85,10 +86,10 @@ func _refresh() -> void:
     var g := _gs()
     if g == null:
         return
-    _full.value = g.fullness
-    _full.modulate = Color(1, 0.45, 0.45) if g.fullness > 70.0 else Color(1, 1, 1)
-    _energy.value = g.energy
-    _energy.modulate = Color(1, 0.45, 0.45) if g.energy < 25.0 else Color(1, 1, 1)
+    _full.size.x = BAR_W * (clampf(g.fullness, 0.0, 100.0) / 100.0)
+    _full.color = Color(1, 0.45, 0.45) if g.fullness > 70.0 else Color(0.95, 0.62, 0.20)
+    _energy.size.x = BAR_W * (clampf(g.energy, 0.0, 100.0) / 100.0)
+    _energy.color = Color(1, 0.45, 0.45) if g.energy < 25.0 else Color(0.35, 0.80, 0.42)
     _power_lbl.text = "PWR %d / 100" % g.power
 
 func _refresh_clock() -> void:
@@ -96,23 +97,18 @@ func _refresh_clock() -> void:
     if g:
         _clock_lbl.text = g.clock_string()
 
-func _bar(parent: Control, pos: Vector2, color: Color) -> ProgressBar:
-    var b := ProgressBar.new()
-    b.position = pos
-    b.custom_minimum_size = Vector2(78, 8)
-    b.size = Vector2(78, 8)
-    b.min_value = 0
-    b.max_value = 100
-    b.value = 0
-    b.show_percentage = false
-    var bg := StyleBoxFlat.new()
-    bg.bg_color = Color(0, 0, 0, 0.55)
-    var fg := StyleBoxFlat.new()
-    fg.bg_color = color
-    b.add_theme_stylebox_override("background", bg)
-    b.add_theme_stylebox_override("fill", fg)
-    parent.add_child(b)
-    return b
+func _bar(parent: Control, pos: Vector2, color: Color) -> ColorRect:
+    var bg := ColorRect.new()
+    bg.position = pos
+    bg.size = Vector2(BAR_W, 7)
+    bg.color = Color(0, 0, 0, 0.6)
+    parent.add_child(bg)
+    var fill := ColorRect.new()
+    fill.position = pos
+    fill.size = Vector2(0, 7)
+    fill.color = color
+    parent.add_child(fill)
+    return fill
 
 func _label(parent: Control, pos: Vector2, text: String, size: int) -> Label:
     var l := Label.new()

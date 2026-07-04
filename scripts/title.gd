@@ -30,6 +30,10 @@ func _ready() -> void:
         add_child(l)
 
 func _load_tex(path: String) -> Texture2D:
+    if ResourceLoader.exists(path):
+        var r = load(path)
+        if r is Texture2D:
+            return r
     var img := Image.new()
     if img.load(path) == OK:
         return ImageTexture.create_from_image(img)
