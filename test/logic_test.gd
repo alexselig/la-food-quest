@@ -4,6 +4,9 @@ extends SceneTree
 
 const GameStateScript := preload("res://scripts/game_state.gd")
 const WorldScript := preload("res://scripts/world.gd")
+const GameDataScript := preload("res://scripts/data/game_data.gd")
+const QuestManagerScript := preload("res://scripts/quest_manager.gd")
+const DialogueManagerScript := preload("res://scripts/dialogue_manager.gd")
 const _Title := preload("res://scripts/title.gd")
 const _Car := preload("res://scripts/car.gd")
 const _GameOver := preload("res://scripts/game_over.gd")
@@ -164,6 +167,118 @@ func _run() -> int:
     f += ck(GS4.power == 42 and GS4.day == 2 and GS4.discovered.has("taco"), "loaded state matches saved")
     GS3.free()
     GS4.free()
+
+    # ============================================================
+    # Foundation systems (data-driven expansion)
+    # ============================================================
+
+    # --- GameState: abilities / inventory / recipes / stamps / flags / puzzles / fooddex / levels ---
+    var GSf = GameStateScript.new()
+    f += ck(GSf.has_ability("trail_finder") and GSf.has_ability("food_sense"), "start: trail finder + food sense on")
+    f += ck(not GSf.has_ability("tandem_bike"), "start: tandem bike locked")
+    f += ck(GSf.unlock_ability("tandem_bike") == true, "unlock ability returns true first time")
+    f += ck(GSf.unlock_ability("tandem_bike") == false, "unlock ability idempotent")
+    GSf.add_item("chain_pin")
+    f += ck(GSf.has_item("chain_pin") and GSf.item_count("chain_pin") == 1, "add/has item")
+    f += ck(GSf.remove_item("chain_pin") and not GSf.has_item("chain_pin"), "remove item")
+    f += ck(GSf.learn_recipe("chili_crisp_noodles") and GSf.has_recipe("chili_crisp_noodles"), "learn recipe")
+    f += ck(GSf.learn_recipe("chili_crisp_noodles") == false, "recipe idempotent")
+    f += ck(GSf.add_stamp("echo_park_lotus") and GSf.has_stamp("echo_park_lotus"), "add stamp")
+    f += ck(GSf.add_stamp("echo_park_lotus") == false, "stamp idempotent")
+    f += ck(GSf.stamp_count() == 1, "stamp count")
+    GSf.set_flag("scent_solved")
+    f += ck(GSf.has_flag("scent_solved"), "set/has flag")
+    GSf.set_flag("scent_solved", false)
+    f += ck(not GSf.has_flag("scent_solved"), "clear flag")
+    GSf.set_flag("scent_solved")
+    GSf.set_puzzle_state("lake_map", {"orient": [0, 1, 2, 3]})
+    GSf.mark_puzzle_solved("lake_map")
+    f += ck(GSf.is_puzzle_solved("lake_map"), "puzzle solved flag")
+    GSf.set_food_dex("sunset_noodle", GameStateScript.Dex.VISITED)
+    f += ck(GSf.food_dex_state("sunset_noodle") == GameStateScript.Dex.VISITED, "fooddex state set")
+    GSf.set_food_dex("sunset_noodle", GameStateScript.Dex.RUMORED)
+    f += ck(GSf.food_dex_state("sunset_noodle") == GameStateScript.Dex.VISITED, "fooddex never downgrades")
+    f += ck(GSf.is_level_unlocked("echo_park") and not GSf.is_level_unlocked("griffith"), "level unlock defaults")
+    GSf.unlock_level("griffith")
+    GSf.complete_level("echo_park")
+    f += ck(GSf.is_level_unlocked("griffith") and GSf.is_level_complete("echo_park"), "unlock + complete level")
+
+    # --- Save/load round trip of new state ---
+    GSf.save_game()
+    var GSg = GameStateScript.new()
+    f += ck(GSg.load_game(), "load succeeds (expanded state)")
+    f += ck(GSg.has_ability("tandem_bike"), "loaded ability persists")
+    f += ck(GSg.has_stamp("echo_park_lotus"), "loaded stamp persists")
+    f += ck(GSg.has_flag("scent_solved"), "loaded flag persists")
+    f += ck(GSg.is_puzzle_solved("lake_map"), "loaded puzzle-solved persists")
+    f += ck(GSg.is_level_unlocked("griffith"), "loaded unlocked level persists")
+    f += ck(GSg.food_dex_state("sunset_noodle") == GameStateScript.Dex.VISITED, "loaded fooddex persists")
+
+    # --- Migration from an old (prototype) save that lacks the new keys ---
+    var GSh = GameStateScript.new()
+    GSh.from_dict({"power": 10, "fullness": 5.0, "energy": 50.0, "minutes": 600, "day": 1, "quest": 1, "discovered": {"taco": true}})
+    f += ck(GSh.has_ability("trail_finder"), "migration: default abilities present")
+    f += ck(not GSh.has_ability("tandem_bike"), "migration: locked ability stays locked")
+    f += ck(GSh.is_level_unlocked("echo_park"), "migration: default unlocked levels")
+    f += ck(GSh.power == 10 and GSh.discovered.has("taco"), "migration: old fields load")
+
+    # --- QuestManager: step ordering + completion ---
+    var QData = GameDataScript.new()
+    var QM = QuestManagerScript.new()
+    var GSq = GameStateScript.new()
+    QM.gs = GSq
+    QM.data = QData
+    QM.start_quest("L1_MAIN")
+    f += ck(QM.is_active("L1_MAIN"), "quest starts active")
+    f += ck(QM.current_step_id("L1_MAIN") == "meet_remy", "first step is meet_remy")
+    QM.complete_step("L1_MAIN", "meet_remy")
+    f += ck(QM.current_step_id("L1_MAIN") == "solve_scent", "advances to solve_scent")
+    f += ck(QM.is_step_done("L1_MAIN", "meet_remy"), "step marked done")
+    QM.complete_step("L1_MAIN", "nonexistent_step")
+    f += ck(QM.current_step_id("L1_MAIN") == "solve_scent", "invalid step ignored")
+    QM.note_step("solve_scent")
+    f += ck(QM.is_step_done("L1_MAIN", "solve_scent"), "note_step completes owning quest step")
+    for sid in ["repair_map", "find_restaurant", "eat_noodles", "park_loop", "unlock_bike", "reach_exit"]:
+        QM.complete_step("L1_MAIN", sid)
+    f += ck(QM.is_complete("L1_MAIN"), "quest completes when all steps done")
+    f += ck(QM.current_objective("L1_MAIN") == "Complete!", "objective shows complete")
+
+    # --- DialogueManager: line flow + flag/step side effects ---
+    var DData = GameDataScript.new()
+    var GSd = GameStateScript.new()
+    var QMd = QuestManagerScript.new()
+    QMd.gs = GSd
+    QMd.data = DData
+    QMd.start_quest("L1_MAIN")
+    QMd.complete_step("L1_MAIN", "meet_remy")
+    var DM = DialogueManagerScript.new()
+    DM.gs = GSd
+    DM.data = DData
+    DM.quests = QMd
+    var lines: Array = []
+    DM.line_shown.connect(func(sp, tx): lines.append([sp, tx]))
+    f += ck(DM.start("L1_REAL_SCENT") == true, "dialogue starts")
+    f += ck(DM.is_active(), "dialogue active after start")
+    f += ck(lines.size() == 1 and lines[0][0] == "xiao", "first line shown (xiao)")
+    DM.advance()  # -> alp
+    DM.advance()  # -> xiao (applies set_flags + complete_step)
+    f += ck(GSd.has_flag("scent_solved"), "dialogue set_flags applied")
+    f += ck(QMd.is_step_done("L1_MAIN", "solve_scent"), "dialogue completed quest step")
+    DM.advance()  # next "" -> finish
+    f += ck(not DM.is_active(), "dialogue finishes at terminal node")
+    f += ck(GSd.dialogue_played("L1_REAL_SCENT"), "dialogue marked played")
+    f += ck(DM.start("NOPE_MISSING") == false, "missing dialogue returns false")
+
+    GSf.free()
+    GSg.free()
+    GSh.free()
+    GSq.free()
+    QM.free()
+    QData.free()
+    GSd.free()
+    QMd.free()
+    DM.free()
+    DData.free()
 
     GS.free()
     W.free()

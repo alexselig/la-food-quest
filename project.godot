@@ -8,6 +8,9 @@ config/features=PackedStringArray("4.6", "GL Compatibility")
 
 [autoload]
 GameState="*res://scripts/game_state.gd"
+GameData="*res://scripts/data/game_data.gd"
+QuestManager="*res://scripts/quest_manager.gd"
+DialogueManager="*res://scripts/dialogue_manager.gd"
 
 [display]
 window/size/viewport_width=320
