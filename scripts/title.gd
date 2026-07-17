@@ -45,10 +45,10 @@ func _input(event: InputEvent) -> void:
     elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_L:
         var gs := get_node_or_null("/root/GameState")
         if gs and gs.has_save() and gs.load_game():
-            get_tree().change_scene_to_file("res://scenes/world.tscn")
+            get_tree().change_scene_to_file("res://scenes/level.tscn")
 
 func _start_new() -> void:
     var gs := get_node_or_null("/root/GameState")
     if gs:
         gs.reset()
-    get_tree().change_scene_to_file("res://scenes/world.tscn")
+    get_tree().change_scene_to_file("res://scenes/level.tscn")

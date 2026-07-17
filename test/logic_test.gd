@@ -7,6 +7,7 @@ const WorldScript := preload("res://scripts/world.gd")
 const GameDataScript := preload("res://scripts/data/game_data.gd")
 const QuestManagerScript := preload("res://scripts/quest_manager.gd")
 const DialogueManagerScript := preload("res://scripts/dialogue_manager.gd")
+const LevelControllerScript := preload("res://scripts/level_controller.gd")
 const _Title := preload("res://scripts/title.gd")
 const _Car := preload("res://scripts/car.gd")
 const _GameOver := preload("res://scripts/game_over.gd")
@@ -26,6 +27,12 @@ func ck(cond: bool, msg: String) -> int:
         return 0
     printerr("  FAIL: ", msg)
     return 1
+
+func _play_out(dm) -> void:
+    var n := 0
+    while dm.is_active() and n < 30:
+        dm.advance()
+        n += 1
 
 func _run() -> int:
     var f := 0
@@ -279,6 +286,132 @@ func _run() -> int:
     QMd.free()
     DM.free()
     DData.free()
+
+    # ============================================================
+    # Level 1 (Echo Park) end-to-end flow through LevelController
+    # ============================================================
+    var GSl = GameStateScript.new()
+    var DataL = GameDataScript.new()
+    var QML = QuestManagerScript.new()
+    QML.gs = GSl
+    QML.data = DataL
+    var DML = DialogueManagerScript.new()
+    DML.gs = GSl
+    DML.data = DataL
+    DML.quests = QML
+    var LC = LevelControllerScript.new()
+    LC.gs = GSl
+    LC.data = DataL
+    LC.quests = QML
+    LC.dlg = DML
+    LC.build_from_data("echo_park")
+    f += ck(LC.cols == 34 and LC.rows == 22, "L1 grid dims from data")
+    f += ck(LC.is_blocked(Vector2i(0, 0)), "L1 border blocked")
+    f += ck(LC.is_blocked(Vector2i(11, 10)), "L1 lake water blocked")
+    f += ck(not LC.is_blocked(Vector2i(3, 5)), "L1 spawn walkable")
+
+    # 1. Meet Remy -> quest starts, dialogue completes meet_remy
+    LC.interact_at(Vector2i(7, 3))
+    f += ck(QML.is_active("L1_MAIN"), "L1 quest active after Remy")
+    _play_out(DML)
+    f += ck(QML.is_step_done("L1_MAIN", "meet_remy"), "meet_remy step done")
+
+    # exit locked before quest complete
+    var early_exit: String = LC.interact_at(Vector2i(32, 10))
+    f += ck("shut" in early_exit.to_lower(), "exit locked before quest complete")
+    f += ck(not QML.is_complete("L1_MAIN"), "early exit does not complete quest")
+
+    # 2. restaurant hidden before scent solved
+    var hidden_msg: String = LC.interact_at(Vector2i(28, 3))
+    f += ck("hidden" in hidden_msg.to_lower(), "restaurant hidden before scent")
+    f += ck(GSl.food_dex_state("sunset_noodle") == GameStateScript.Dex.UNKNOWN, "restaurant unknown pre-scent")
+
+    # 3. Follow the real aroma -> scent_solved
+    LC.interact_at(Vector2i(18, 3))
+    _play_out(DML)
+    f += ck(GSl.has_flag("scent_solved"), "scent_solved flag set")
+    f += ck(QML.is_step_done("L1_MAIN", "solve_scent"), "solve_scent step done")
+
+    # 4. Repair the lake map (simulate puzzle solve)
+    LC._on_puzzle_solved("lake_map")
+    _play_out(DML)
+    f += ck(GSl.is_puzzle_solved("lake_map"), "lake_map puzzle solved")
+    f += ck(GSl.has_flag("map_solved") and QML.is_step_done("L1_MAIN", "repair_map"), "repair_map step done")
+
+    # 5. Discover then eat the noodles
+    var disc: String = LC.interact_at(Vector2i(28, 3))
+    f += ck("discovered" in disc.to_lower(), "restaurant discovered after scent")
+    f += ck(QML.is_step_done("L1_MAIN", "find_restaurant"), "find_restaurant step done")
+    _play_out(DML)
+    var pw0: int = GSl.power
+    LC.interact_at(Vector2i(28, 3))
+    f += ck(GSl.power == pw0 + 20, "eating raises power +20")
+    f += ck(GSl.food_dex_state("sunset_noodle") == GameStateScript.Dex.VISITED, "restaurant visited after eating")
+    f += ck(QML.is_step_done("L1_MAIN", "eat_noodles"), "eat_noodles step done")
+    _play_out(DML)
+
+    # 6. Park loop lowers fullness + grants recipe
+    var full_before: float = GSl.fullness
+    LC.interact_at(Vector2i(6, 17))
+    f += ck(GSl.fullness < full_before, "park activity lowers fullness")
+    f += ck(QML.is_step_done("L1_MAIN", "park_loop"), "park_loop step done")
+    f += ck(GSl.has_recipe("chili_crisp_noodles"), "park grants recipe card")
+
+    # 7. Collect 3 parts, fix the tandem bike with Nia
+    f += ck(not GSl.has_ability("tandem_bike"), "bike locked before repair")
+    LC.interact_at(Vector2i(16, 17))
+    _play_out(DML)
+    f += ck(not GSl.has_ability("tandem_bike"), "bike still locked without parts")
+    LC.interact_at(Vector2i(12, 18))
+    LC.interact_at(Vector2i(26, 11))
+    LC.interact_at(Vector2i(30, 15))
+    f += ck(GSl.has_item("chain_pin") and GSl.has_item("oil") and GSl.has_item("bell_screw"), "collected all 3 bike parts")
+    LC.interact_at(Vector2i(16, 17))
+    _play_out(DML)
+    f += ck(GSl.has_ability("tandem_bike"), "tandem bike unlocked")
+    f += ck(QML.is_step_done("L1_MAIN", "unlock_bike"), "unlock_bike step done")
+    f += ck(not GSl.has_item("chain_pin"), "bike parts consumed")
+
+    # 8. Exit completes the quest + awards stamp/level rewards
+    LC.interact_at(Vector2i(32, 10))
+    f += ck(QML.is_complete("L1_MAIN"), "quest completes at exit when all steps done")
+    f += ck(GSl.has_stamp("echo_park_lotus"), "Echo Park Lotus stamp earned")
+    f += ck(GSl.is_level_unlocked("griffith"), "District 2 (griffith) unlocked")
+    f += ck(GSl.is_level_complete("echo_park"), "echo_park marked complete")
+    f += ck(GSl.power == pw0 + 20 + 5, "level completion grants +5 bonus power")
+
+    # 9. Reachability: every interactive L1 object reachable from spawn
+    var reach2 := {}
+    var q2: Array = [Vector2i(3, 5)]
+    reach2[Vector2i(3, 5)] = true
+    while not q2.is_empty():
+        var cur2: Vector2i = q2.pop_back()
+        for dd in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+            var nn2: Vector2i = cur2 + dd
+            if not LC.is_blocked(nn2) and not reach2.has(nn2):
+                reach2[nn2] = true
+                q2.append(nn2)
+    var unreach2 := 0
+    for o in LC.objects:
+        if String(o.get("type", "")) in ["obstacle"]:
+            continue
+        var rr: Rect2i = o["_rect"]
+        var okr := false
+        for ix in range(rr.position.x, rr.position.x + rr.size.x):
+            for jy in range(rr.position.y, rr.position.y + rr.size.y):
+                for dd in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+                    if reach2.has(Vector2i(ix, jy) + dd):
+                        okr = true
+        if not okr:
+            unreach2 += 1
+            printerr("  L1 unreach2able: ", o.get("name", o.get("id", "?")))
+    f += ck(unreach2 == 0, "all L1 interactive objects reach2able from spawn")
+
+    GSl.free()
+    DataL.free()
+    QML.free()
+    DML.free()
+    LC.free()
 
     GS.free()
     W.free()

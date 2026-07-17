@@ -37,10 +37,7 @@ func _process(_delta: float) -> void:
     if _on_bike() != _was_bike:
         _was_bike = _on_bike()
         _update_sprite()
-    if moving:
-        return
-    if on_interact.is_valid() and Input.is_action_just_pressed("ui_accept"):
-        on_interact.call(facing_cell())
+    if moving or _locked():
         return
     var dir := Vector2i.ZERO
     if Input.is_action_pressed("ui_up"):
@@ -55,6 +52,16 @@ func _process(_delta: float) -> void:
         facing = dir
         _update_sprite()
         _try_move(dir)
+
+func _unhandled_input(event: InputEvent) -> void:
+    if moving or _locked():
+        return
+    if on_interact.is_valid() and event.is_action_pressed("ui_accept"):
+        on_interact.call(facing_cell())
+
+func _locked() -> bool:
+    var dm := get_node_or_null("/root/DialogueManager")
+    return dm != null and dm.is_active()
 
 func _try_move(dir: Vector2i) -> void:
     var one := cell + dir

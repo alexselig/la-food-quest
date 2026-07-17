@@ -7,6 +7,7 @@ var _full: ColorRect
 var _energy: ColorRect
 var _power_lbl: Label
 var _clock_lbl: Label
+var _obj_lbl: Label
 var _toast_panel: PanelContainer
 var _toast_lbl: Label
 var _toast_t := 0.0
@@ -31,6 +32,13 @@ func _ready() -> void:
     _clock_lbl = _label(root, Vector2(196, 4), "Day 1  08:00", 10)
     _clock_lbl.size = Vector2(120, 14)
     _clock_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    var hint := _label(root, Vector2(196, 16), "A Trail  S Scent  Tab Journal", 7)
+    hint.size = Vector2(120, 10)
+    hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    hint.add_theme_color_override("font_color", Color(0.72, 0.74, 0.8))
+    _obj_lbl = _label(root, Vector2(4, 46), "", 8)
+    _obj_lbl.size = Vector2(240, 12)
+    _obj_lbl.add_theme_color_override("font_color", Color(1, 0.92, 0.55))
 
     _toast_panel = PanelContainer.new()
     var sb := StyleBoxFlat.new()
@@ -96,6 +104,10 @@ func _refresh_clock() -> void:
     var g := _gs()
     if g:
         _clock_lbl.text = g.clock_string()
+
+func set_objective(text: String) -> void:
+    if _obj_lbl:
+        _obj_lbl.text = ("\u25B6 " + text) if text != "" else ""
 
 func _bar(parent: Control, pos: Vector2, color: Color) -> ColorRect:
     var bg := ColorRect.new()
