@@ -5,6 +5,7 @@ extends Node2D
 ## interact_at). Visual setup (player, camera, HUD, puzzle UI) only runs in-tree.
 
 const TILE := 16
+const CHAR_H := 26.0
 const GameStateScript := preload("res://scripts/game_state.gd")
 const GridPlayerScript := preload("res://scripts/grid_player.gd")
 const HudScript := preload("res://scripts/hud.gd")
@@ -29,6 +30,7 @@ var rows := 22
 
 var blocked: Dictionary = {}
 var water: Dictionary = {}
+var paths: Dictionary = {}
 var objects: Array = []
 var objects_by_cell: Dictionary = {}
 
@@ -74,6 +76,7 @@ func build_from_data(id: String) -> void:
 	rows = int(level.get("rows", 22))
 	blocked.clear()
 	water.clear()
+	paths.clear()
 	objects.clear()
 	objects_by_cell.clear()
 	for x in cols:
@@ -87,6 +90,9 @@ func build_from_data(id: String) -> void:
 		for c in _rect_cells(wr):
 			water[c] = true
 			blocked[c] = true
+	for pth in level.get("paths", []):
+		for c in _rect_cells(_arr_rect(pth)):
+			paths[c] = true
 	for ob in level.get("obstacles", []):
 		_add_object({"type": "obstacle", "id": ob.get("id", ""), "_rect": _arr_rect(ob["rect"])})
 	for od in level.get("objects", []):
@@ -421,12 +427,27 @@ func _load_textures() -> void:
 	_sprites["npc"] = _tex("res://assets/props/npc.png")
 	_sprites["bench"] = _tex("res://assets/props/bench.png")
 	_sprites["bike"] = _tex("res://assets/props/bike.png")
+	# Optional generated art (used automatically once present).
+	for nid in ["remy", "nia", "mara", "sol", "ori", "han", "mina"]:
+		var nt := _tex("res://assets/npcs/%s.png" % nid)
+		if nt:
+			_sprites["npc_" + nid] = nt
+	for env in ["water", "path", "sand"]:
+		var et := _tex("res://assets/tiles/%s.png" % env)
+		if et:
+			_sprites[env] = et
+	for prop in ["tree", "lotus", "lamp", "sign", "gate", "mapboard"]:
+		var pt := _tex("res://assets/props/%s.png" % prop)
+		if pt:
+			_sprites[prop] = pt
 
 func _tex(path: String) -> Texture2D:
 	if ResourceLoader.exists(path):
 		var r = load(path)
 		if r is Texture2D:
 			return r
+	if not FileAccess.file_exists(path):
+		return null
 	var img := Image.new()
 	if img.load(path) == OK:
 		return ImageTexture.create_from_image(img)
@@ -440,17 +461,38 @@ func _draw() -> void:
 			if x == 0 or y == 0 or x == cols - 1 or y == rows - 1:
 				_blit(_wall, rect, Color(0.30, 0.30, 0.34))
 			elif water.has(cell):
-				draw_rect(rect, Color(0.24, 0.45, 0.62))
-				draw_rect(Rect2(rect.position.x, rect.position.y + 6, TILE, 2), Color(0.34, 0.57, 0.72, 0.7))
+				_draw_water_cell(x, y, rect)
+			elif paths.has(cell):
+				_blit(_sprites.get("path", _pavement), rect, Color(0.62, 0.58, 0.5))
 			else:
 				_blit(_grass, rect, Color(0.36, 0.55, 0.32))
-	for o in objects:
-		if not (String(o.get("type", "")) in ["npc", "mechanic", "sign", "item", "rest_point", "bike_rack", "puzzle", "exit"]):
-			_draw_object(o)
-	for o in objects:
-		if String(o.get("type", "")) in ["npc", "mechanic", "sign", "item", "rest_point", "bike_rack", "puzzle", "exit"]:
-			_draw_object(o)
+	# Objects back-to-front by footprint bottom edge so nearer things overlap farther ones.
+	var ordered := objects.duplicate()
+	ordered.sort_custom(func(a, b): return _bottom(a) < _bottom(b))
+	for o in ordered:
+		_draw_object(o)
 	_draw_ability_overlay()
+
+func _bottom(o: Dictionary) -> int:
+	var r: Rect2i = o["_rect"]
+	return r.position.y + r.size.y
+
+func _draw_water_cell(x: int, y: int, rect: Rect2) -> void:
+	if _sprites.get("water"):
+		_blit(_sprites["water"], rect, Color(0.2, 0.42, 0.6))
+	else:
+		var checker := (x + y) % 2 == 0
+		draw_rect(rect, Color(0.20, 0.42, 0.60) if checker else Color(0.23, 0.46, 0.65))
+		# ripples
+		draw_rect(Rect2(rect.position.x + 3, rect.position.y + 5, 5, 1), Color(0.42, 0.62, 0.78, 0.5))
+		draw_rect(Rect2(rect.position.x + 9, rect.position.y + 11, 4, 1), Color(0.42, 0.62, 0.78, 0.35))
+	# shoreline highlight on edges bordering non-water
+	if not water.has(Vector2i(x, y - 1)):
+		draw_rect(Rect2(rect.position.x, rect.position.y, TILE, 2), Color(0.62, 0.80, 0.88, 0.75))
+	if not water.has(Vector2i(x - 1, y)):
+		draw_rect(Rect2(rect.position.x, rect.position.y, 2, TILE), Color(0.55, 0.74, 0.84, 0.5))
+	if not water.has(Vector2i(x + 1, y)):
+		draw_rect(Rect2(rect.position.x + TILE - 2, rect.position.y, 2, TILE), Color(0.15, 0.32, 0.48, 0.5))
 
 func _blit(tex: Texture2D, rect: Rect2, fallback: Color) -> void:
 	if tex:
@@ -461,48 +503,177 @@ func _blit(tex: Texture2D, rect: Rect2, fallback: Color) -> void:
 func _draw_object(o: Dictionary) -> void:
 	var r: Rect2i = o["_rect"]
 	var t := String(o.get("type", ""))
-	var px := r.position.x * TILE
-	var py := r.position.y * TILE
-	var pw := r.size.x * TILE
-	var ph := r.size.y * TILE
+	var px := float(r.position.x * TILE)
+	var py := float(r.position.y * TILE)
+	var pw := float(r.size.x * TILE)
+	var ph := float(r.size.y * TILE)
 	match t:
 		"obstacle":
-			_blit(_sprites.get(String(o.get("id", "")), null), Rect2(px, py, pw, ph), Color(0.5, 0.5, 0.55))
+			if String(o.get("id", "")) in ["tree", "lotus", "lamp"]:
+				_draw_decor(String(o["id"]), px, py, pw, ph)
+			else:
+				_draw_building(_sprites.get(String(o.get("id", "")), null), px, py, pw, ph, Color(0.5, 0.5, 0.55))
 		"restaurant":
-			_blit(_sprites.get(String(data.get_restaurant(String(o["id"])).get("sprite", "ramen")) if data else "ramen", null), Rect2(px, py, pw, ph), Color(0.8, 0.4, 0.3))
+			var rsp := String(data.get_restaurant(String(o["id"])).get("sprite", "ramen")) if data else "ramen"
+			_draw_building(_sprites.get(rsp, null), px, py, pw, ph, Color(0.8, 0.4, 0.3))
 		"park_activity":
-			_blit(_sprites.get("park", null), Rect2(px, py, pw, ph), Color(0.3, 0.6, 0.3))
+			_draw_park_marker(px, py, pw, ph)
 		"npc", "mechanic":
-			_draw_prop(_sprites.get("npc", null), px, py, pw, ph, Color(0.9, 0.85, 0.5))
+			_draw_character(o, px, py, pw, ph)
 		"rest_point":
 			if String(o.get("mode", "")) == "home":
-				_blit(_sprites.get("home", null), Rect2(px, py, pw, ph), Color(0.6, 0.5, 0.4))
+				_draw_building(_sprites.get("home", null), px, py, pw, ph, Color(0.6, 0.5, 0.4))
 			else:
-				_draw_prop(_sprites.get("bench", null), px, py, pw, ph, Color(0.5, 0.4, 0.3))
+				_draw_ground_prop(_sprites.get("bench", null), px, py, pw, ph, Color(0.5, 0.4, 0.3))
 		"bike_rack":
-			_draw_prop(_sprites.get("bike", null), px, py, pw, ph, Color(0.4, 0.7, 0.4))
+			_draw_ground_prop(_sprites.get("bike", null), px, py, pw, ph, Color(0.4, 0.7, 0.4))
 		"sign":
-			var col := Color(0.85, 0.75, 0.45)
-			draw_rect(Rect2(px + 6, py + 2, 4, ph - 4), Color(0.4, 0.3, 0.2))
-			draw_rect(Rect2(px + 1, py + 1, pw - 2, 7), col)
+			_draw_sign(px, py, pw, ph)
 		"item":
-			draw_rect(Rect2(px + 4, py + 4, pw - 8, ph - 8), Color(0.95, 0.85, 0.35))
-			draw_rect(Rect2(px + 5, py + 5, pw - 10, ph - 10), Color(0.7, 0.55, 0.2))
+			_draw_item(px, py, pw, ph)
 		"puzzle":
-			draw_rect(Rect2(px + 1, py + 1, pw - 2, ph - 2), Color(0.55, 0.45, 0.7))
-			draw_rect(Rect2(px + 3, py + 3, pw - 6, ph - 6), Color(0.8, 0.75, 0.9))
+			_draw_puzzle_board(o, px, py, pw, ph)
 		"exit":
-			var open: bool = quests != null and quests.is_complete(String(level.get("completion_quest_id", "")))
-			draw_rect(Rect2(px, py, pw, ph), Color(0.4, 0.8, 0.45) if open else Color(0.7, 0.35, 0.35))
-			draw_rect(Rect2(px + 2, py + 2, pw - 4, ph - 4), Color(0.2, 0.2, 0.22))
+			_draw_gate(px, py, pw, ph)
 
-func _draw_prop(tex: Texture2D, px: int, py: int, pw: int, ph: int, fallback: Color) -> void:
+func _shadow(cx: float, base_y: float, w: float) -> void:
+	draw_set_transform(Vector2(cx, base_y - 1.0), 0.0, Vector2(1.0, 0.38))
+	draw_circle(Vector2.ZERO, w * 0.5, Color(0, 0, 0, 0.22))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+# Buildings: fit to footprint width, preserve aspect, sit on the ground (bottom-aligned).
+func _draw_building(tex: Texture2D, px: float, py: float, pw: float, ph: float, fallback: Color) -> void:
 	if tex == null:
+		draw_rect(Rect2(px, py, pw, ph), fallback)
+		return
+	var sc := pw / float(tex.get_width())
+	var tw := pw
+	var th := tex.get_height() * sc
+	var bottom := py + ph
+	_shadow(px + pw * 0.5, bottom, pw * 0.9)
+	draw_texture_rect(tex, Rect2(px, bottom - th, tw, th), false)
+
+# Characters: constant on-screen size, centered on footprint, bottom-aligned (fixes the
+# "footprint-scaled" giant NPC bug).
+func _draw_character(o: Dictionary, px: float, py: float, pw: float, ph: float) -> void:
+	var tex: Texture2D = _sprites.get("npc_" + String(o.get("id", "")), null)
+	if tex == null:
+		tex = _sprites.get("npc", null)
+	var cx := px + pw * 0.5
+	var bottom := py + ph
+	if tex == null:
+		_shadow(cx, bottom, 12)
+		draw_rect(Rect2(cx - 6, bottom - 24, 12, 24), Color(0.85, 0.8, 0.5))
+		return
+	var h := CHAR_H
+	var sc := h / float(tex.get_height())
+	var w := tex.get_width() * sc
+	var tint: Color = o.get("tint", Color(1, 1, 1))
+	_shadow(cx, bottom, w * 0.7)
+	draw_texture_rect(tex, Rect2(cx - w * 0.5, bottom - h, w, h), false, tint)
+
+# Ground props (bench, bike rack): fit width, bottom-aligned, with a shadow.
+func _draw_ground_prop(tex: Texture2D, px: float, py: float, pw: float, ph: float, fallback: Color) -> void:
+	var bottom := py + ph
+	if tex == null:
+		_shadow(px + pw * 0.5, bottom, pw * 0.7)
 		draw_rect(Rect2(px + 2, py + 2, pw - 4, ph - 4), fallback)
 		return
-	var sc := float(pw) / float(tex.get_width())
+	var sc := pw / float(tex.get_width())
 	var th := tex.get_height() * sc
-	draw_texture_rect(tex, Rect2(px, (py + ph) - th, pw, th), false)
+	_shadow(px + pw * 0.5, bottom, pw * 0.8)
+	draw_texture_rect(tex, Rect2(px, bottom - th, pw, th), false)
+
+func _draw_decor(kind: String, px: float, py: float, pw: float, ph: float) -> void:
+	var tex: Texture2D = _sprites.get(kind, null)
+	var bottom := py + ph
+	if tex:
+		var sc := pw / float(tex.get_width())
+		var th := tex.get_height() * sc
+		_shadow(px + pw * 0.5, bottom, pw * 0.7)
+		draw_texture_rect(tex, Rect2(px, bottom - th, pw, th), false)
+		return
+	var cx := px + pw * 0.5
+	if kind == "tree":
+		_shadow(cx, bottom, pw * 0.7)
+		draw_rect(Rect2(cx - 2, bottom - 10, 4, 10), Color(0.42, 0.28, 0.16))
+		draw_circle(Vector2(cx, bottom - 15), pw * 0.5, Color(0.20, 0.45, 0.24))
+		draw_circle(Vector2(cx - 4, bottom - 12), pw * 0.35, Color(0.24, 0.52, 0.28))
+		draw_circle(Vector2(cx + 4, bottom - 13), pw * 0.32, Color(0.18, 0.42, 0.22))
+	elif kind == "lotus":
+		draw_circle(Vector2(cx, py + ph * 0.5), pw * 0.35, Color(0.25, 0.55, 0.35))
+		draw_circle(Vector2(cx, py + ph * 0.5), pw * 0.18, Color(0.95, 0.6, 0.75))
+	elif kind == "lamp":
+		_shadow(cx, bottom, 6)
+		draw_rect(Rect2(cx - 1, bottom - 22, 2, 22), Color(0.2, 0.2, 0.24))
+		draw_circle(Vector2(cx, bottom - 23), 3, Color(1.0, 0.9, 0.55))
+
+func _draw_park_marker(px: float, py: float, pw: float, ph: float) -> void:
+	var cx := px + pw * 0.5
+	var cy := py + ph * 0.5
+	# dirt track ring
+	draw_set_transform(Vector2(cx, cy), 0.0, Vector2(1.0, 0.6))
+	draw_arc(Vector2.ZERO, pw * 0.55, 0, TAU, 24, Color(0.72, 0.6, 0.4), 3.0)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# a small tree in the middle
+	_draw_decor("tree", px + pw * 0.25, py, pw * 0.5, ph)
+
+func _draw_sign(px: float, py: float, pw: float, ph: float) -> void:
+	if _sprites.get("sign"):
+		_draw_ground_prop(_sprites["sign"], px, py, pw, ph, Color(0.85, 0.75, 0.45))
+		return
+	var cx := px + pw * 0.5
+	var bottom := py + ph
+	_shadow(cx, bottom, pw * 0.5)
+	draw_rect(Rect2(cx - 1.5, bottom - 12, 3, 12), Color(0.42, 0.30, 0.18))  # post
+	draw_rect(Rect2(px + 1, py + 1, pw - 2, 9), Color(0.85, 0.72, 0.42))     # board
+	draw_rect(Rect2(px + 2, py + 3, pw - 4, 1), Color(0.5, 0.38, 0.2))
+	draw_rect(Rect2(px + 2, py + 6, pw - 6, 1), Color(0.5, 0.38, 0.2))
+
+func _draw_item(px: float, py: float, pw: float, ph: float) -> void:
+	var t := Time.get_ticks_msec() / 1000.0
+	var bob := sin(t * 3.0) * 1.5
+	var cx := px + pw * 0.5
+	var cy := py + ph * 0.5 + bob
+	_shadow(cx, py + ph - 1, pw * 0.45)
+	draw_circle(Vector2(cx, cy), 5.5, Color(1.0, 0.95, 0.5, 0.35))  # halo
+	# diamond gem
+	var pts := PackedVector2Array([Vector2(cx, cy - 4), Vector2(cx + 4, cy), Vector2(cx, cy + 4), Vector2(cx - 4, cy)])
+	draw_colored_polygon(pts, Color(0.98, 0.82, 0.30))
+	draw_line(Vector2(cx, cy - 4), Vector2(cx, cy + 4), Color(1, 1, 0.8, 0.8), 1.0)
+
+func _draw_puzzle_board(o: Dictionary, px: float, py: float, pw: float, ph: float) -> void:
+	var cx := px + pw * 0.5
+	var bottom := py + ph
+	var solved: bool = gs != null and gs.is_puzzle_solved(String(o.get("id", "")))
+	_shadow(cx, bottom, pw * 0.7)
+	draw_rect(Rect2(cx - 2, bottom - 8, 4, 8), Color(0.35, 0.25, 0.15))       # post
+	var frame := Rect2(px + 1, py + 1, pw - 2, ph - 6)
+	draw_rect(frame, Color(0.30, 0.22, 0.42))                                 # frame
+	var inner := Rect2(px + 3, py + 3, pw - 6, ph - 10)
+	draw_rect(inner, Color(0.55, 0.85, 0.7) if solved else Color(0.72, 0.66, 0.85))
+	# grid lines to suggest a map/circuit
+	draw_line(Vector2(inner.position.x, inner.position.y + inner.size.y * 0.5), Vector2(inner.position.x + inner.size.x, inner.position.y + inner.size.y * 0.5), Color(0.3, 0.25, 0.4, 0.7), 1.0)
+	draw_line(Vector2(inner.position.x + inner.size.x * 0.5, inner.position.y), Vector2(inner.position.x + inner.size.x * 0.5, inner.position.y + inner.size.y), Color(0.3, 0.25, 0.4, 0.7), 1.0)
+
+func _draw_gate(px: float, py: float, pw: float, ph: float) -> void:
+	var open: bool = quests != null and quests.is_complete(String(level.get("completion_quest_id", "")))
+	var bottom := py + ph
+	var post := Color(0.45, 0.32, 0.2)
+	_shadow(px + pw * 0.5, bottom, pw * 0.9)
+	draw_rect(Rect2(px + 1, bottom - ph, 3, ph), post)                        # left post
+	draw_rect(Rect2(px + pw - 4, bottom - ph, 3, ph), post)                   # right post
+	draw_rect(Rect2(px + 1, bottom - ph, pw - 2, 4), post)                    # top bar
+	var mid := Rect2(px + 5, bottom - ph + 5, pw - 10, ph - 6)
+	if open:
+		draw_rect(mid, Color(0.45, 0.85, 0.5, 0.55))                          # open glow
+		var ax := px + pw * 0.5
+		draw_line(Vector2(ax - 3, bottom - ph * 0.5), Vector2(ax + 3, bottom - ph * 0.5), Color(1, 1, 1, 0.9), 1.5)
+		draw_line(Vector2(ax + 1, bottom - ph * 0.5 - 2), Vector2(ax + 3, bottom - ph * 0.5), Color(1, 1, 1, 0.9), 1.5)
+		draw_line(Vector2(ax + 1, bottom - ph * 0.5 + 2), Vector2(ax + 3, bottom - ph * 0.5), Color(1, 1, 1, 0.9), 1.5)
+	else:
+		for i in range(0, int(pw) - 8, 4):
+			draw_rect(Rect2(px + 5 + i, bottom - ph + 5, 2, ph - 6), Color(0.7, 0.35, 0.35, 0.8))
 
 func _draw_ability_overlay() -> void:
 	var t := Time.get_ticks_msec() / 1000.0

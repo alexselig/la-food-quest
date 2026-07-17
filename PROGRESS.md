@@ -45,7 +45,16 @@ Tracking the expansion from prototype → 5-level game per
 - test/logic_test.gd (foundation + L1/L2/L3 flows + circuit logic + reachability)
 
 ## Notes
-- Keep all UI text ASCII (Godot default font shows no arrows/symbols). Rotation nodes use N/E/S/W.
+- Keep world tiles/objects readable; UI text is ASCII where it uses the world font.
+- UI HANDOFF implemented (LA Food Quest UI Handoff): HUD/dialogue/toast/legendary on
+  high-res CanvasLayers (1280x720 ref, scaled to counter 320x180 stretch) so text is crisp.
+  Palette + Silkscreen/Press Start 2P fonts + exported bar/legendary textures in scripts/ui/ui_kit.gd.
+  Provided assets in assets/ui (bar_fill_*, bar_track, legendary_bg) + assets/fonts.
+- Distinct NPC sprites generated via Gemini in assets/npcs/<id>.png (remy/nia/mara/sol/ori/han/mina);
+  regenerate with `python3 tools/gen_npcs.py [ids|env]` (GEMINI_API_KEY from gitignored .env; never commit it).
+- Renderer: characters drawn at fixed CHAR_H (consistent scale), buildings bottom-aligned + shadows,
+  y-sorted, procedural water/sign/item/puzzle/gate/park + path layer.
+- After adding raw assets, run `godot --headless --import` so they're bundled in the web export.
 
 ## Controls
 Arrows move; Space/Enter interact/advance; A Trail Finder; S Food Sense; D dismount bike; Tab/J journal; Esc pause.
