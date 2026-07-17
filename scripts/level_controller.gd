@@ -14,6 +14,7 @@ const JournalScript := preload("res://scripts/ui/journal.gd")
 const LevelCompleteScript := preload("res://scripts/ui/level_complete.gd")
 const RotationPuzzleScript := preload("res://scripts/puzzles/rotation_puzzle.gd")
 const RhythmPuzzleScript := preload("res://scripts/puzzles/rhythm_puzzle.gd")
+const CircuitPuzzleScript := preload("res://scripts/puzzles/circuit_puzzle.gd")
 
 # Injectable dependencies (default to autoloads in-tree)
 var gs: Node
@@ -166,7 +167,10 @@ func interact_at(cell: Vector2i) -> String:
 			return _interact_rest(o)
 		"puzzle":
 			if gs.is_puzzle_solved(String(o["id"])):
-				return "The map route is already fixed."
+				return String(o.get("solved_msg", "That puzzle is already solved."))
+			var preq := String(o.get("require_flag", ""))
+			if preq != "" and not gs.has_flag(preq):
+				return String(o.get("locked_hint", "You can't start this yet."))
 			_open_puzzle(o)
 			return ""
 		"exit":
@@ -208,8 +212,11 @@ func _interact_park(o: Dictionary) -> String:
 	return "Lap done at %s. Fullness down, energy spent.%s" % [String(o.get("name", "the park")), extra]
 
 func _interact_mechanic(o: Dictionary) -> String:
-	if gs.has_ability("tandem_bike"):
-		return "Nia: The tandem's all yours - hop on at the bike rack."
+	var grants_ab := String(o.get("grants_ability", ""))
+	var set_flag := String(o.get("set_flag", ""))
+	var already: bool = (grants_ab != "" and gs.has_ability(grants_ab)) or (set_flag != "" and gs.has_flag(set_flag))
+	if already:
+		return String(o.get("done_msg", "Thanks again!"))
 	var needs: Array = o.get("needs", [])
 	var have_all := true
 	for n in needs:
@@ -217,12 +224,18 @@ func _interact_mechanic(o: Dictionary) -> String:
 			have_all = false
 	if not have_all:
 		_play(String(o.get("dialogue", "")))
-		return "Nia needs the chain pin, oil, and bell screw."
+		return String(o.get("need_msg", "You still need to gather everything."))
 	for n in needs:
 		gs.remove_item(String(n))
-	gs.unlock_ability("tandem_bike")
+	if grants_ab != "":
+		gs.unlock_ability(grants_ab)
+	if set_flag != "":
+		gs.set_flag(set_flag)
+	var step := String(o.get("complete_step", ""))
+	if step != "" and quests:
+		quests.note_step(step)
 	_play(String(o.get("unlock_dialogue", "")))
-	return "Fixed the tandem bike! Hop on at the bike rack."
+	return String(o.get("done_msg", "Done!"))
 
 func _interact_bike_rack() -> String:
 	if not gs.has_ability("tandem_bike"):
@@ -319,7 +332,10 @@ func _open_puzzle(o: Dictionary) -> void:
 	var pz
 	if kind == "rhythm":
 		pz = RhythmPuzzleScript.new()
-		pz.configure(String(o["id"]), o.get("target", ["low", "low", "high"]), {}, {}, String(o.get("title", "")), "")
+		pz.configure(String(o["id"]), o.get("target", ["low", "low", "high"]), o.get("keys", {}), o.get("symbols", {}), String(o.get("title", "")), String(o.get("prompt", "")))
+	elif kind == "circuit":
+		pz = CircuitPuzzleScript.new()
+		pz.configure(String(o["id"]), int(o.get("count", 5)), o.get("scramble", []), o.get("labels", []), String(o.get("title", "")))
 	else:
 		pz = RotationPuzzleScript.new()
 		pz.configure(String(o["id"]), o.get("target", [1, 2, 0, 3]), o.get("labels", []), String(o.get("title", "")))

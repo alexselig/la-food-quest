@@ -8,6 +8,7 @@ const GameDataScript := preload("res://scripts/data/game_data.gd")
 const QuestManagerScript := preload("res://scripts/quest_manager.gd")
 const DialogueManagerScript := preload("res://scripts/dialogue_manager.gd")
 const LevelControllerScript := preload("res://scripts/level_controller.gd")
+const CircuitPuzzleScript := preload("res://scripts/puzzles/circuit_puzzle.gd")
 const _Title := preload("res://scripts/title.gd")
 const _Car := preload("res://scripts/car.gd")
 const _GameOver := preload("res://scripts/game_over.gd")
@@ -498,6 +499,125 @@ func _run() -> int:
     GS2g.free()
     QM2.free()
     DM2.free()
+
+    # ============================================================
+    # CircuitPuzzle (lights-out) logic
+    # ============================================================
+    var CP = CircuitPuzzleScript.new()
+    CP.configure("c_test", 5, [1, 3])
+    CP.init_state()
+    f += ck(not CP.is_solved(), "circuit starts unsolved")
+    CP.apply_toggle(1)
+    CP.apply_toggle(3)
+    f += ck(CP.is_solved(), "circuit solved by re-applying the scramble toggles")
+    CP.apply_toggle(0)
+    f += ck(not CP.is_solved(), "circuit unsolved again after a stray toggle")
+    CP.free()
+
+    # ============================================================
+    # Level 3 (Koreatown) flow
+    # ============================================================
+    var GS3k = GameStateScript.new()
+    var QM3 = QuestManagerScript.new()
+    QM3.gs = GS3k
+    QM3.data = DataL
+    var DM3 = DialogueManagerScript.new()
+    DM3.gs = GS3k
+    DM3.data = DataL
+    DM3.quests = QM3
+    var LC3 = LevelControllerScript.new()
+    LC3.gs = GS3k
+    LC3.data = DataL
+    LC3.quests = QM3
+    LC3.dlg = DM3
+    LC3.build_from_data("koreatown")
+    f += ck(DataL.has_level("koreatown"), "koreatown level exists")
+    f += ck(not LC3.is_blocked(Vector2i(4, 4)), "L3 spawn walkable")
+
+    LC3.interact_at(Vector2i(8, 4))  # Mrs. Han
+    f += ck(QM3.is_active("L3_MAIN"), "L3 quest active after Mrs. Han")
+    _play_out(DM3)
+    f += ck(QM3.is_step_done("L3_MAIN", "meet_han"), "meet_han step done")
+
+    LC3._on_puzzle_solved("neon_circuit")
+    _play_out(DM3)
+    f += ck(GS3k.has_flag("power_restored"), "power restored by circuit")
+    f += ck(QM3.is_step_done("L3_MAIN", "fix_circuit"), "fix_circuit step done")
+
+    # Chef Mina refuses before ingredients
+    var mina_need: String = LC3.interact_at(Vector2i(22, 12))
+    f += ck("needs" in mina_need.to_lower(), "Chef Mina asks for ingredients first")
+    _play_out(DM3)
+    f += ck(not QM3.is_step_done("L3_MAIN", "gather_ingredients"), "gather not done without ingredients")
+
+    LC3.interact_at(Vector2i(16, 8))   # perilla
+    LC3.interact_at(Vector2i(20, 6))   # king oyster
+    LC3.interact_at(Vector2i(24, 8))   # garlic
+    LC3.interact_at(Vector2i(28, 6))   # pear marinade
+    f += ck(GS3k.has_item("perilla") and GS3k.has_item("king_oyster") and GS3k.has_item("garlic") and GS3k.has_item("pear_marinade"), "collected all 4 ingredients")
+    LC3.interact_at(Vector2i(22, 12))  # Chef Mina with ingredients
+    _play_out(DM3)
+    f += ck(GS3k.has_flag("ingredients_ready"), "ingredients_ready flag set")
+    f += ck(QM3.is_step_done("L3_MAIN", "gather_ingredients"), "gather_ingredients step done")
+    f += ck(not GS3k.has_item("perilla"), "ingredients consumed by chef")
+
+    # Cooking puzzle gated until ingredients ready (it is now), solve it
+    LC3._on_puzzle_solved("cooking")
+    _play_out(DM3)
+    f += ck(GS3k.has_flag("wrap_cooked"), "wrap_cooked flag set")
+    f += ck(QM3.is_step_done("L3_MAIN", "cook_wrap"), "cook_wrap step done")
+
+    # Ember Table gated on wrap_cooked
+    var pw3: int = GS3k.power
+    LC3.interact_at(Vector2i(32, 5))   # discover
+    _play_out(DM3)
+    LC3.interact_at(Vector2i(32, 5))   # eat
+    f += ck(GS3k.power == pw3 + 25, "eating wrap raises power +25")
+    f += ck(QM3.is_step_done("L3_MAIN", "eat_wrap"), "eat_wrap step done")
+    _play_out(DM3)
+
+    f += ck(not GS3k.has_ability("cooler_basket"), "cooler locked before dance")
+    LC3.interact_at(Vector2i(10, 18))  # dance circle
+    _play_out(DM3)
+    f += ck(QM3.is_step_done("L3_MAIN", "dance_circle"), "dance_circle step done")
+    f += ck(GS3k.has_ability("cooler_basket"), "dance grants Cooler Basket")
+
+    LC3.interact_at(Vector2i(38, 12))  # exit (needs cooler_basket)
+    f += ck(QM3.is_complete("L3_MAIN"), "L3 quest completes at exit")
+    f += ck(GS3k.has_stamp("koreatown_grill"), "Koreatown Grill stamp earned")
+    f += ck(GS3k.is_level_unlocked("santa_monica"), "District 4 (santa_monica) unlocked")
+    f += ck(GS3k.power == pw3 + 25 + 5, "L3 completion grants +5 bonus power")
+
+    var r4 := {}
+    var q4: Array = [Vector2i(4, 4)]
+    r4[Vector2i(4, 4)] = true
+    while not q4.is_empty():
+        var c4: Vector2i = q4.pop_back()
+        for dd in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+            var n4: Vector2i = c4 + dd
+            if not LC3.is_blocked(n4) and not r4.has(n4):
+                r4[n4] = true
+                q4.append(n4)
+    var un3 := 0
+    for o in LC3.objects:
+        if String(o.get("type", "")) in ["obstacle"]:
+            continue
+        var rr3: Rect2i = o["_rect"]
+        var ok3 := false
+        for ix in range(rr3.position.x, rr3.position.x + rr3.size.x):
+            for jy in range(rr3.position.y, rr3.position.y + rr3.size.y):
+                for dd in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+                    if r4.has(Vector2i(ix, jy) + dd):
+                        ok3 = true
+        if not ok3:
+            un3 += 1
+            printerr("  L3 unreachable: ", o.get("name", o.get("id", "?")))
+    f += ck(un3 == 0, "all L3 interactive objects reachable from spawn")
+
+    LC3.free()
+    GS3k.free()
+    QM3.free()
+    DM3.free()
 
     LC.free()
     GSl.free()

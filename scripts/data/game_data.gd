@@ -59,6 +59,18 @@ const RESTAURANTS := {
 		"food_dex_description": "Citrus ricotta, dates, toasted seeds, sea salt. The view gets people here; the toast brings them back.",
 		"sprite": "diner",
 	},
+	"ember_table": {
+		"display_name": "Ember Table BBQ",
+		"neighborhood": "Koreatown",
+		"signature_dish": "Mushroom Lettuce Wrap Feast",
+		"power": 25, "fullness": 42.0, "energy": 0.0, "minutes": 45,
+		"open_minute": 360, "close_minute": 1380,
+		"first_visit_dialogue": "L3_EMBER_ARRIVAL",
+		"meal_dialogue": "L3_EMBER_MEAL",
+		"repeat_dialogue": "",
+		"food_dex_description": "Crispy edge, soft center, cold leaf. Contrast is edible architecture.",
+		"sprite": "dumpling",
+	},
 }
 
 # --- Levels ---
@@ -94,7 +106,7 @@ const LEVELS := {
 			{"type": "item", "id": "chain_pin", "name": "Chain Pin", "cell": [12, 18], "hint": "from the bridge"},
 			{"type": "item", "id": "oil", "name": "Oil Can", "cell": [26, 11], "hint": "from the maintenance shed"},
 			{"type": "item", "id": "bell_screw", "name": "Bell Screw", "cell": [30, 15], "hint": "near the bike rack"},
-			{"type": "mechanic", "id": "nia", "name": "Nia (boathouse)", "rect": [16, 17, 2, 2], "sprite": "npc", "needs": ["chain_pin", "oil", "bell_screw"], "dialogue": "L1_MEET_NIA", "unlock_dialogue": "L1_BIKE_UNLOCK"},
+			{"type": "mechanic", "id": "nia", "name": "Nia (boathouse)", "rect": [16, 17, 2, 2], "sprite": "npc", "needs": ["chain_pin", "oil", "bell_screw"], "grants_ability": "tandem_bike", "dialogue": "L1_MEET_NIA", "unlock_dialogue": "L1_BIKE_UNLOCK", "need_msg": "Nia needs the chain pin, oil, and bell screw.", "done_msg": "Nia: The tandem's all yours - hop on at the bike rack."},
 			{"type": "bike_rack", "id": "bike_rack", "name": "Bike Rack", "cell": [30, 16]},
 			{"type": "rest_point", "id": "bench", "name": "Lake Bench", "cell": [4, 9], "mode": "bench", "energy": 25.0, "mins": 90, "sprite": "bench"},
 			{"type": "exit", "id": "silver_lake_exit", "name": "Silver Lake Gate", "cell": [32, 10], "target_level": "griffith", "target_spawn": "from_echo"},
@@ -129,6 +141,41 @@ const LEVELS := {
 			{"type": "exit", "id": "los_feliz_exit", "name": "Los Feliz Gate", "cell": [38, 12], "target_level": "koreatown", "target_spawn": "from_griffith", "require_ability": "bike_bell"},
 		],
 	},
+	"koreatown": {
+		"display_name": "Koreatown",
+		"cols": 40, "rows": 24,
+		"ground": "grass",
+		"next_level_id": "santa_monica",
+		"stamp": "koreatown_grill",
+		"ability_unlock": "cooler_basket",
+		"bonus_power": 5,
+		"completion_quest_id": "L3_MAIN",
+		"opening_dialogue": "L3_OPENING",
+		"spawns": {"start": [4, 4], "from_griffith": [4, 4]},
+		"water": [],
+		"obstacles": [
+			{"id": "fill_shop_a", "rect": [14, 4, 2, 2]},
+			{"id": "fill_shop_b", "rect": [30, 8, 2, 2]},
+			{"id": "fill_office", "rect": [20, 15, 2, 2]},
+		],
+		"objects": [
+			{"type": "npc", "id": "han", "name": "Mrs. Han", "cell": [8, 4], "dialogue": "L3_MEET_HAN", "starts_quest": "L3_MAIN", "sprite": "npc"},
+			{"type": "puzzle", "id": "neon_circuit", "name": "Neon Relay Board", "cell": [12, 6], "kind": "circuit", "count": 5, "scramble": [1, 3], "labels": ["Source", "Ember", "Karaoke", "Dessert", "Relay"], "title": "Neon Circuit: light every relay", "solved_dialogue": "L3_CIRCUIT_SOLVED"},
+			{"type": "item", "id": "perilla", "name": "Perilla Leaf", "cell": [16, 8], "hint": "(ingredient)"},
+			{"type": "item", "id": "king_oyster", "name": "King Oyster Mushroom", "cell": [20, 6], "hint": "(ingredient)"},
+			{"type": "item", "id": "garlic", "name": "Garlic", "cell": [24, 8], "hint": "(ingredient)"},
+			{"type": "item", "id": "pear_marinade", "name": "Pear Marinade", "cell": [28, 6], "hint": "(ingredient)"},
+			{"type": "item", "id": "decoy_kimchi", "name": "Extra Kimchi", "cell": [18, 10], "hint": "(a decoy)"},
+			{"type": "item", "id": "decoy_tofu", "name": "Soft Tofu", "cell": [26, 10], "hint": "(a decoy)"},
+			{"type": "mechanic", "id": "mina", "name": "Chef Mina", "cell": [22, 12], "sprite": "npc", "needs": ["perilla", "king_oyster", "garlic", "pear_marinade"], "set_flag": "ingredients_ready", "complete_step": "gather_ingredients", "dialogue": "L3_MEET_MINA", "unlock_dialogue": "L3_INGREDIENTS_READY", "need_msg": "Chef Mina needs perilla, king oyster mushroom, garlic, and pear marinade.", "done_msg": "Chef Mina: Perfect. Fire up the tabletop grill."},
+			{"type": "puzzle", "id": "cooking", "name": "Tabletop Grill", "cell": [27, 14], "kind": "rhythm", "target": ["preheat", "place", "flip", "assemble"], "keys": {"49": "preheat", "50": "place", "51": "flip", "52": "assemble"}, "symbols": {"preheat": "1-PRE", "place": "2-PLACE", "flip": "3-FLIP", "assemble": "4-WRAP"}, "title": "Tabletop grill: preheat, place, flip, wrap", "prompt": "Press 1, 2, 3, 4 in order", "require_flag": "ingredients_ready", "locked_hint": "Bring Chef Mina the ingredients first.", "solved_dialogue": "L3_COOK_DONE"},
+			{"type": "restaurant", "id": "ember_table", "name": "Ember Table BBQ", "rect": [32, 5, 2, 2], "require_flag": "wrap_cooked", "locked_hint": "The grill's cold. Cook the wrap first.", "discover_step": "", "eat_step": "eat_wrap"},
+			{"type": "park_activity", "id": "dance_circle", "name": "Seoul Park Dance Circle", "cell": [10, 18], "fullness": 45.0, "energy": 22.0, "mins": 45, "recipe": "tabletop_mushroom_wrap", "step": "dance_circle", "grants_ability": "cooler_basket", "unlock_dialogue": "L3_COOLER_UNLOCK"},
+			{"type": "rest_point", "id": "bench3", "name": "K-town Bench", "cell": [6, 11], "mode": "bench", "energy": 25.0, "mins": 90, "sprite": "bench"},
+			{"type": "bike_rack", "id": "bike_rack3", "name": "Bike Rack", "cell": [5, 6]},
+			{"type": "exit", "id": "ktown_exit", "name": "Eastern Gate", "cell": [38, 12], "target_level": "santa_monica", "target_spawn": "from_koreatown", "require_ability": "cooler_basket"},
+		],
+	},
 }
 
 # --- Quests (spec 10.3) ---
@@ -159,6 +206,19 @@ const QUESTS := {
 			{"id": "eat_toast", "text": "Eat the Trail Mix Toast."},
 			{"id": "hill_intervals", "text": "Run the hill intervals to earn the Bike Bell."},
 			{"id": "reach_exit", "text": "Ring the bell and ride to the Los Feliz exit."},
+		],
+	},
+	"L3_MAIN": {
+		"title": "The Table That's Hottest When the Lights Go Out",
+		"level_id": "koreatown",
+		"steps": [
+			{"id": "meet_han", "text": "Talk to Mrs. Han at the market."},
+			{"id": "fix_circuit", "text": "Fix the neon relay board (light every relay)."},
+			{"id": "gather_ingredients", "text": "Gather 4 ingredients for Chef Mina (Food Sense, S)."},
+			{"id": "cook_wrap", "text": "Cook the wrap on the tabletop grill."},
+			{"id": "eat_wrap", "text": "Eat the Mushroom Lettuce Wrap at Ember Table."},
+			{"id": "dance_circle", "text": "Join the Seoul Park dance circle (earns Cooler Basket)."},
+			{"id": "reach_exit", "text": "Take the chilled dessert out the eastern gate."},
 		],
 	},
 }
@@ -289,6 +349,51 @@ const DIALOGUES := {
 	"L2_COMPLETE": {"start": "a", "nodes": {
 		"a": {"speaker": "xiao", "text": "Two stamps. We're basically locals.", "next": "b"},
 		"b": {"speaker": "alp", "text": "Koreatown next. Bring your appetite and your patience.", "next": ""},
+	}},
+	# Level 3
+	"L3_OPENING": {"start": "a", "nodes": {
+		"a": {"speaker": "narrator", "text": "Koreatown. Third clue: \"Find the table that is hottest when every light goes out.\"", "next": "b"},
+		"b": {"speaker": "xiao", "text": "A rolling blackout. Half the signs are dark.", "next": "c"},
+		"c": {"speaker": "alp", "text": "So we find the one that still cooks. Efficient.", "next": ""},
+	}},
+	"L3_MEET_HAN": {"start": "a", "nodes": {
+		"a": {"speaker": "han", "text": "Three neon relays failed. Ember Table can't vent its grill without power.", "next": "b"},
+		"b": {"speaker": "han", "text": "Light the whole board and the block comes back.", "next": "c"},
+		"c": {"speaker": "xiao", "text": "Dinner via municipal infrastructure. My favorite.", "complete_step": "meet_han", "next": ""},
+	}},
+	"L3_CIRCUIT_SOLVED": {"start": "a", "nodes": {
+		"a": {"speaker": "xiao", "text": "The whole block is glowing.", "next": "b"},
+		"b": {"speaker": "alp", "text": "We repaired municipal infrastructure for dinner.", "next": "c"},
+		"c": {"speaker": "xiao", "text": "Finally, a reasonable reservation policy.", "set_flags": ["power_restored"], "complete_step": "fix_circuit", "next": ""},
+	}},
+	"L3_MEET_MINA": {"start": "a", "nodes": {
+		"a": {"speaker": "han", "text": "Chef Mina needs perilla, king oyster mushroom, garlic, and pear marinade.", "next": "b"},
+		"b": {"speaker": "han", "text": "The right leaf smells sharp before it tastes sweet. Use your nose.", "next": ""},
+	}},
+	"L3_INGREDIENTS_READY": {"start": "a", "nodes": {
+		"a": {"speaker": "han", "text": "Good haul. The tabletop grill is yours - preheat, place, flip, wrap.", "next": ""},
+	}},
+	"L3_COOK_DONE": {"start": "a", "nodes": {
+		"a": {"speaker": "han", "text": "Crispy edge, soft center. That's the one.", "set_flags": ["wrap_cooked"], "complete_step": "cook_wrap", "next": ""},
+	}},
+	"L3_EMBER_ARRIVAL": {"start": "a", "nodes": {
+		"a": {"speaker": "han", "text": "A table is ready when you are ready to pay attention.", "next": "b"},
+		"b": {"speaker": "xiao", "text": "I have never been more attentive.", "next": "c"},
+		"c": {"speaker": "alp", "text": "He ignored three traffic lights to get here.", "next": ""},
+	}},
+	"L3_EMBER_MEAL": {"start": "a", "nodes": {
+		"a": {"speaker": "xiao", "text": "Crispy edge, soft center, cold leaf.", "next": "b"},
+		"b": {"speaker": "alp", "text": "You sound surprised by temperature.", "next": "c"},
+		"c": {"speaker": "xiao", "text": "Contrast is edible architecture.", "next": ""},
+	}},
+	"L3_COOLER_UNLOCK": {"start": "a", "nodes": {
+		"a": {"speaker": "han", "text": "Take this insulated basket. Keep the lid closed.", "next": "b"},
+		"b": {"speaker": "xiao", "text": "Even if I need to inspect it?", "next": "c"},
+		"c": {"speaker": "alp", "text": "Especially then. I understand the assignment.", "next": ""},
+	}},
+	"L3_COMPLETE": {"start": "a", "nodes": {
+		"a": {"speaker": "xiao", "text": "Three down. The dessert's still cold.", "next": "b"},
+		"b": {"speaker": "alp", "text": "To the coast. Try not to interpret the next clue as tacos.", "next": ""},
 	}},
 }
 
