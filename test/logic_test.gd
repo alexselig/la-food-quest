@@ -262,11 +262,9 @@ func _run() -> int:
     DM.gs = GSd
     DM.data = DData
     DM.quests = QMd
-    var lines: Array = []
-    DM.line_shown.connect(func(sp, tx): lines.append([sp, tx]))
     f += ck(DM.start("L1_REAL_SCENT") == true, "dialogue starts")
     f += ck(DM.is_active(), "dialogue active after start")
-    f += ck(lines.size() == 1 and lines[0][0] == "xiao", "first line shown (xiao)")
+    f += ck(DM.current_speaker() == "xiao", "first line speaker is xiao")
     DM.advance()  # -> alp
     DM.advance()  # -> xiao (applies set_flags + complete_step)
     f += ck(GSd.has_flag("scent_solved"), "dialogue set_flags applied")
@@ -404,14 +402,108 @@ func _run() -> int:
                         okr = true
         if not okr:
             unreach2 += 1
-            printerr("  L1 unreach2able: ", o.get("name", o.get("id", "?")))
-    f += ck(unreach2 == 0, "all L1 interactive objects reach2able from spawn")
+            printerr("  L1 unreachable: ", o.get("name", o.get("id", "?")))
+    f += ck(unreach2 == 0, "all L1 interactive objects reachable from spawn")
 
+    # ============================================================
+    # Level 2 (Griffith Park) flow + Echo->Griffith transition target
+    # ============================================================
+    f += ck(DataL.has_level("griffith"), "griffith level exists (transition target)")
+    var GS2g = GameStateScript.new()
+    var QM2 = QuestManagerScript.new()
+    QM2.gs = GS2g
+    QM2.data = DataL
+    var DM2 = DialogueManagerScript.new()
+    DM2.gs = GS2g
+    DM2.data = DataL
+    DM2.quests = QM2
+    var LC2 = LevelControllerScript.new()
+    LC2.gs = GS2g
+    LC2.data = DataL
+    LC2.quests = QM2
+    LC2.dlg = DM2
+    LC2.build_from_data("griffith")
+    f += ck(LC2.cols == 40 and LC2.rows == 24, "L2 grid dims from data")
+    f += ck(not LC2.is_blocked(Vector2i(4, 4)), "L2 spawn walkable")
+
+    LC2.interact_at(Vector2i(8, 4))  # Ranger Sol
+    f += ck(QM2.is_active("L2_MAIN"), "L2 quest active after Ranger Sol")
+    _play_out(DM2)
+    f += ck(QM2.is_step_done("L2_MAIN", "meet_ranger"), "meet_ranger step done")
+
+    var cafe_locked: String = LC2.interact_at(Vector2i(33, 5))
+    f += ck("hidden" in cafe_locked.to_lower(), "cafe locked before overlook found")
+
+    LC2._on_puzzle_solved("trail_markers")
+    _play_out(DM2)
+    f += ck(QM2.is_step_done("L2_MAIN", "fix_trail_markers"), "trail markers step done")
+    LC2._on_puzzle_solved("shadow_dial")
+    _play_out(DM2)
+    f += ck(QM2.is_step_done("L2_MAIN", "solve_sundial"), "sundial step done")
+    LC2._on_puzzle_solved("trail_bells")
+    _play_out(DM2)
+    f += ck(GS2g.has_flag("overlook_found"), "overlook_found flag set by bells")
+    f += ck(QM2.is_step_done("L2_MAIN", "ring_bells"), "ring_bells step done")
+
+    var disc2: String = LC2.interact_at(Vector2i(33, 5))
+    f += ck("discovered" in disc2.to_lower(), "cafe discovered after overlook")
+    f += ck(QM2.is_step_done("L2_MAIN", "find_cafe"), "find_cafe step done")
+    _play_out(DM2)
+    var pw2: int = GS2g.power
+    LC2.interact_at(Vector2i(33, 5))
+    f += ck(GS2g.power == pw2 + 20, "eating toast raises power +20")
+    f += ck(QM2.is_step_done("L2_MAIN", "eat_toast"), "eat_toast step done")
+    _play_out(DM2)
+
+    f += ck(not GS2g.has_ability("bike_bell"), "bike bell locked before hill intervals")
+    LC2.interact_at(Vector2i(10, 18))  # hill intervals
+    _play_out(DM2)
+    f += ck(QM2.is_step_done("L2_MAIN", "hill_intervals"), "hill_intervals step done")
+    f += ck(GS2g.has_ability("bike_bell"), "hill intervals grants Bike Bell")
+    f += ck(GS2g.has_recipe("trail_mix_toast"), "hill intervals grants recipe")
+
+    LC2.interact_at(Vector2i(38, 12))  # exit (needs bike_bell, has it)
+    f += ck(QM2.is_complete("L2_MAIN"), "L2 quest completes at exit")
+    f += ck(GS2g.has_stamp("griffith_star"), "Griffith Star stamp earned")
+    f += ck(GS2g.is_level_unlocked("koreatown"), "District 3 (koreatown) unlocked")
+    f += ck(GS2g.power == pw2 + 20 + 5, "L2 completion grants +5 bonus power")
+
+    var r3 := {}
+    var q3: Array = [Vector2i(4, 4)]
+    r3[Vector2i(4, 4)] = true
+    while not q3.is_empty():
+        var c3: Vector2i = q3.pop_back()
+        for dd in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+            var n3: Vector2i = c3 + dd
+            if not LC2.is_blocked(n3) and not r3.has(n3):
+                r3[n3] = true
+                q3.append(n3)
+    var un2 := 0
+    for o in LC2.objects:
+        if String(o.get("type", "")) in ["obstacle"]:
+            continue
+        var rr2: Rect2i = o["_rect"]
+        var ok2 := false
+        for ix in range(rr2.position.x, rr2.position.x + rr2.size.x):
+            for jy in range(rr2.position.y, rr2.position.y + rr2.size.y):
+                for dd in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+                    if r3.has(Vector2i(ix, jy) + dd):
+                        ok2 = true
+        if not ok2:
+            un2 += 1
+            printerr("  L2 unreachable: ", o.get("name", o.get("id", "?")))
+    f += ck(un2 == 0, "all L2 interactive objects reachable from spawn")
+
+    LC2.free()
+    GS2g.free()
+    QM2.free()
+    DM2.free()
+
+    LC.free()
     GSl.free()
     DataL.free()
     QML.free()
     DML.free()
-    LC.free()
 
     GS.free()
     W.free()

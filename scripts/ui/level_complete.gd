@@ -6,12 +6,16 @@ var _level: Dictionary = {}
 var _stamp := ""
 var _gs: Node
 var _data: Node
+var _next_id := ""
+var _next_spawn := "start"
 
-func configure(level: Dictionary, stamp_id: String, gs: Node, data: Node) -> void:
+func configure(level: Dictionary, stamp_id: String, gs: Node, data: Node, next_id: String = "", next_spawn: String = "start") -> void:
 	_level = level
 	_stamp = stamp_id
 	_gs = gs
 	_data = data
+	_next_id = next_id
+	_next_spawn = next_spawn
 
 func _ready() -> void:
 	layer = 250
@@ -23,17 +27,19 @@ func _ready() -> void:
 	add_child(dim)
 
 	var stamp_name: String = _data.stamp_name(_stamp) if _data else _stamp
-	var next_id := String(_level.get("next_level_id", ""))
 	var bonus := int(_level.get("bonus_power", 0))
+	var has_next: bool = _data != null and _next_id != "" and _data.has_level(_next_id)
 	var body := "[center][b]NEIGHBORHOOD CLEARED[/b]\n\n"
-	body += "[color=#ffd85a]\u2605 %s Stamp earned \u2605[/color]\n\n" % stamp_name
-	body += "Tandem Bike unlocked\n"
+	body += "[color=#ffd85a]* %s Stamp earned *[/color]\n\n" % stamp_name
 	if bonus > 0:
 		body += "+%d bonus Power\n" % bonus
-	if next_id != "":
-		body += "District unlocked: %s\n" % _pretty(next_id)
-	body += "\n[color=#9fb4c8]To be continued...[/color]\n\n"
-	body += "Press Enter[/center]"
+	if _next_id != "":
+		body += "District unlocked: %s\n\n" % _pretty(_next_id)
+	if has_next:
+		body += "[color=#9fe0a0]Press Enter to travel on ->[/color]"
+	else:
+		body += "[color=#9fb4c8]To be continued...[/color]\n\nPress Enter"
+	body += "[/center]"
 
 	var rt := RichTextLabel.new()
 	rt.bbcode_enabled = true
@@ -48,9 +54,17 @@ func _pretty(id: String) -> String:
 	return id.replace("_", " ").capitalize()
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_accept"):
+	if not event.is_action_pressed("ui_accept"):
+		return
+	get_viewport().set_input_as_handled()
+	get_tree().paused = false
+	if _gs and _data and _next_id != "" and _data.has_level(_next_id):
+		_gs.current_level_id = _next_id
+		_gs.current_spawn_id = _next_spawn
+		_gs.set_bike(false)
+		_gs.save_game()
+		get_tree().change_scene_to_file("res://scenes/level.tscn")
+	else:
 		if _gs:
 			_gs.save_game()
-		get_tree().paused = false
 		get_tree().change_scene_to_file("res://scenes/title.tscn")
-		get_viewport().set_input_as_handled()

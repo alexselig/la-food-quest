@@ -95,7 +95,7 @@ func reset() -> void:
 func can_eat() -> bool:
     return fullness <= FULL_THRESHOLD
 
-func eat(power_gain: int, fullness_gain: float, restaurant_id: String = "") -> bool:
+func eat(power_gain: int, fullness_gain: float, restaurant_id: String = "", energy_gain: float = 0.0) -> bool:
     if not can_eat():
         return false
     if restaurant_id != "":
@@ -105,6 +105,8 @@ func eat(power_gain: int, fullness_gain: float, restaurant_id: String = "") -> b
         set_food_dex(restaurant_id, Dex.VISITED)
     power += power_gain
     fullness = clampf(fullness + fullness_gain, 0.0, FULLNESS_MAX)
+    if energy_gain != 0.0:
+        energy = clampf(energy + energy_gain, 0.0, ENERGY_MAX)
     _check_quest_unlock()
     meters_changed.emit()
     advance_time(30)

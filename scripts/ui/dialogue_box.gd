@@ -58,7 +58,7 @@ func _build() -> void:
 	vb.add_child(_text_lbl)
 
 	_hint_lbl = Label.new()
-	_hint_lbl.text = "\u25B6 Space"
+	_hint_lbl.text = "[Space]"
 	_hint_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_hint_lbl.add_theme_font_size_override("font_size", 7)
 	_hint_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.75))

@@ -7,11 +7,13 @@ extends Node2D
 signal solved(puzzle_id)
 signal closed(puzzle_id)
 
-const ARROWS := ["\u2191", "\u2192", "\u2193", "\u2190"]  # N E S W
+const ARROWS := ["N", "E", "S", "W"]  # facing direction: North East South West
 const LABELS := ["Lotus", "Fountain", "Bridge", "Boathouse"]
 
 var puzzle_id := "lake_map"
 var target := [1, 2, 0, 3]   # correct orientations (route: Lotus->Fountain->Bridge->Boathouse)
+var labels: Array = LABELS.duplicate()
+var title_text := "Rotate the markers to connect the route"
 var orient := [0, 0, 0, 0]
 var sel := 0
 var show_hint := false
@@ -27,13 +29,19 @@ func _ready() -> void:
 	_gs = get_node_or_null("/root/GameState")
 	_restore_state()
 	_build()
-	get_tree().paused = true
+	var t := get_tree()
+	if t:
+		t.paused = true
 	_refresh()
 
-func configure(id: String, tgt: Array) -> void:
+func configure(id: String, tgt: Array, lbls: Array = [], ttl: String = "") -> void:
 	puzzle_id = id
 	if tgt.size() == 4:
 		target = tgt.duplicate()
+	if lbls.size() == 4:
+		labels = lbls.duplicate()
+	if ttl != "":
+		title_text = ttl
 
 func _restore_state() -> void:
 	if _gs == null:
@@ -48,7 +56,7 @@ func _build() -> void:
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_root)
 
-	var title := _mk_label("Broken Lake Map  —  rotate to connect the route", 9, Vector2(20, 22))
+	var title := _mk_label(title_text, 9, Vector2(20, 22))
 	title.size = Vector2(280, 12)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
@@ -60,7 +68,7 @@ func _build() -> void:
 		var arrow := _mk_label("", 22, Vector2(28 + i * 68, 66))
 		arrow.size = Vector2(56, 34)
 		arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		var name_lbl := _mk_label(LABELS[i], 7, Vector2(28 + i * 68, 120))
+		var name_lbl := _mk_label(labels[i], 7, Vector2(28 + i * 68, 120))
 		name_lbl.size = Vector2(56, 10)
 		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_cells.append({"box": box, "arrow": arrow})
@@ -70,7 +78,7 @@ func _build() -> void:
 	_hint_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint_lbl.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
 
-	var help := _mk_label("\u2190\u2192 select   \u2191\u2193/Space rotate   A hint   R reset   Esc leave", 7, Vector2(20, 160))
+	var help := _mk_label("Left/Right select   Up/Down rotate   A hint   R reset   Esc leave", 7, Vector2(20, 160))
 	help.size = Vector2(280, 10)
 	help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
@@ -150,6 +158,8 @@ func _save_state(is_solved_flag: bool = false) -> void:
 	_gs.set_puzzle_state(puzzle_id, st)
 
 func _close(_success: bool) -> void:
-	get_tree().paused = false
+	var t := get_tree()
+	if t:
+		t.paused = false
 	closed.emit(puzzle_id)
 	queue_free()

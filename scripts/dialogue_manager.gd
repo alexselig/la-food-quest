@@ -32,6 +32,12 @@ func _quests() -> Node:
 func is_active() -> bool:
 	return _active
 
+func current_speaker() -> String:
+	return String(_graph.get("nodes", {}).get(_node_id, {}).get("speaker", ""))
+
+func current_text() -> String:
+	return String(_graph.get("nodes", {}).get(_node_id, {}).get("text", ""))
+
 func start(dialogue_id: String) -> bool:
 	var d := _data()
 	if d == null:

@@ -19,22 +19,24 @@ Tracking the expansion from prototype → 5-level game per
 ## Milestones
 - [x] M1 Architecture refactor (data-driven systems)
 - [x] M2 Level 1 Echo Park vertical slice
-- [ ] M3 Levels 2 & 3
+- [~] M3 Levels 2 & 3  (Level 2 Griffith DONE; Level 3 Koreatown pending)
 - [ ] M4 Level 4
 - [ ] M5 Level 5 + ending
 - [ ] M6 Polish & release
 
 ## Where I am / What's next
-- DONE (M1): GameState expanded + migration-safe save/load; GameData registry; QuestManager; DialogueManager. Tested.
-- DONE (M2): DialogueBox UI, level_controller + interaction router, Trail Finder/Food Sense, rotation + scent + bike-repair puzzles, Echo Park level, HUD objective, Journal (Tab), level-complete screen. Full Level 1 flow logic-tested; level scene boots headless clean.
-- Game now boots title -> level.tscn (Echo Park). Legacy world.gd/world.tscn kept (still unit-tested) but no longer the main flow.
-- NEXT: web export to docs/ + visual screenshot check, then M3 (Level 2 Griffith Park: trail-marker rotation, sundial, bell sequence, Bike Bell unlock).
+- DONE (M1): data-driven foundation (GameState, GameData, Quest/Dialogue managers). Tested.
+- DONE (M2): Level 1 Echo Park slice (scent + lake-map puzzles, park, bike unlock, stamp). Tested + web-verified.
+- DONE (Level 2 Griffith): level-to-level transitions; RhythmPuzzle (bell seq) + generalized RotationPuzzle (labels/target) reused for trail markers + sundial; Observatory Café; Hill Intervals grants Bike Bell; exit needs Bike Bell; Griffith Star stamp -> unlocks Koreatown. Full L2 flow logic-tested; puzzle UI web-verified.
+- FIXED: Godot default font can't show Unicode arrows/symbols -> switched all UI to ASCII (rotation nodes show N/E/S/W). Important: keep UI text ASCII-only.
+- NEXT: Level 3 Koreatown (neon circuit puzzle, ingredient ID, tabletop cooking timing, dance-circle rhythm, Cooler Basket). Then L4, L5, polish.
 
 ## Key files
 - scripts/game_state.gd, scripts/data/game_data.gd, scripts/quest_manager.gd, scripts/dialogue_manager.gd
-- scripts/level_controller.gd (+ scenes/level.tscn), scripts/puzzles/rotation_puzzle.gd
+- scripts/level_controller.gd (+ scenes/level.tscn)
+- scripts/puzzles/{rotation_puzzle,rhythm_puzzle}.gd
 - scripts/ui/{dialogue_box,journal,level_complete}.gd, scripts/hud.gd
-- test/logic_test.gd (foundation + Level 1 flow + reachability)
+- test/logic_test.gd (foundation + L1 + L2 flows + reachability)
 
 ## Controls
 Arrows move; Space/Enter interact/advance; A Trail Finder; S Food Sense; D dismount bike; Tab/J journal; Esc pause.

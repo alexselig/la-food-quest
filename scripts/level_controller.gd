@@ -13,6 +13,7 @@ const DialogueBoxScript := preload("res://scripts/ui/dialogue_box.gd")
 const JournalScript := preload("res://scripts/ui/journal.gd")
 const LevelCompleteScript := preload("res://scripts/ui/level_complete.gd")
 const RotationPuzzleScript := preload("res://scripts/puzzles/rotation_puzzle.gd")
+const RhythmPuzzleScript := preload("res://scripts/puzzles/rhythm_puzzle.gd")
 
 # Injectable dependencies (default to autoloads in-tree)
 var gs: Node
@@ -177,18 +178,18 @@ func _interact_restaurant(o: Dictionary) -> String:
 	var rdef: Dictionary = data.get_restaurant(rid) if data else {}
 	var req := String(o.get("require_flag", ""))
 	if req != "" and not gs.has_flag(req):
-		return "The window stays hidden. Follow the real aroma first."
+		return String(o.get("locked_hint", "This place isn't open to you yet."))
 	if gs.food_dex_state(rid) == GameStateScript.Dex.UNKNOWN:
 		gs.set_food_dex(rid, GameStateScript.Dex.DISCOVERED)
 		if quests:
-			quests.note_step("find_restaurant")
+			quests.note_step(String(o.get("discover_step", "")))
 		_play(String(rdef.get("first_visit_dialogue", "")))
 		return "Discovered %s!" % String(rdef.get("display_name", o.get("name", rid)))
-	if gs.eat(int(rdef.get("power", 0)), float(rdef.get("fullness", 0.0)), rid):
+	if gs.eat(int(rdef.get("power", 0)), float(rdef.get("fullness", 0.0)), rid, float(rdef.get("energy", 0.0))):
 		if quests:
-			quests.note_step("eat_noodles")
+			quests.note_step(String(o.get("eat_step", "")))
 		_play(String(rdef.get("meal_dialogue", "")))
-		return "+%d PWR — %s" % [int(rdef.get("power", 0)), String(rdef.get("signature_dish", ""))]
+		return "+%d PWR - %s" % [int(rdef.get("power", 0)), String(rdef.get("signature_dish", ""))]
 	_play("GLOBAL_TOO_FULL_01")
 	return "Too full to eat! Work off a meal at a park first."
 
@@ -200,11 +201,15 @@ func _interact_park(o: Dictionary) -> String:
 	var rec := String(o.get("recipe", ""))
 	if rec != "" and gs.learn_recipe(rec):
 		extra = "  Recipe learned: %s!" % (data.recipe_name(rec) if data else rec)
+	var ab := String(o.get("grants_ability", ""))
+	if ab != "" and gs.unlock_ability(ab):
+		_play(String(o.get("unlock_dialogue", "")))
+		extra += "  %s unlocked!" % _ability_label(ab)
 	return "Lap done at %s. Fullness down, energy spent.%s" % [String(o.get("name", "the park")), extra]
 
 func _interact_mechanic(o: Dictionary) -> String:
 	if gs.has_ability("tandem_bike"):
-		return "Nia: The tandem's all yours — hop on at the bike rack."
+		return "Nia: The tandem's all yours - hop on at the bike rack."
 	var needs: Array = o.get("needs", [])
 	var have_all := true
 	for n in needs:
@@ -232,7 +237,7 @@ func _interact_bike_rack() -> String:
 func _interact_rest(o: Dictionary) -> String:
 	if String(o.get("mode", "bench")) == "home":
 		gs.rest_full()
-		return "Slept at the apartment. A new day — energy full."
+		return "Slept at the apartment. A new day - energy full."
 	gs.rest(float(o.get("energy", 25.0)), int(o.get("mins", 90)))
 	return "Rested at the %s. +%d energy." % [String(o.get("name", "bench")), int(o.get("energy", 25.0))]
 
@@ -240,20 +245,34 @@ func _interact_exit(o: Dictionary) -> String:
 	var qid := String(level.get("completion_quest_id", ""))
 	if quests == null or qid == "":
 		return ""
+	var next_level := String(o.get("target_level", level.get("next_level_id", "")))
+	var next_spawn := String(o.get("target_spawn", "start"))
+	var need_ab := String(o.get("require_ability", ""))
 	if quests.is_complete(qid):
-		_complete_level()
+		_complete_level(next_level, next_spawn)
 		return ""
 	var others_done := true
 	for s in (data.get_quest(qid).get("steps", []) if data else []):
-		if String(s.get("id", "")) != "reach_exit" and not quests.is_step_done(qid, String(s.get("id", ""))):
+		var sid3 := String(s.get("id", ""))
+		if sid3 != "reach_exit" and not quests.is_step_done(qid, sid3):
 			others_done = false
-	if others_done:
-		quests.note_step("reach_exit")
-		_complete_level()
-		return ""
-	return "The gate stays shut. First: %s" % quests.current_objective(qid)
+	if not others_done:
+		return "The gate stays shut. First: %s" % quests.current_objective(qid)
+	if need_ab != "" and not gs.has_ability(need_ab):
+		return "You need the %s to clear the way here." % _ability_label(need_ab)
+	quests.note_step("reach_exit")
+	_complete_level(next_level, next_spawn)
+	return ""
 
-func _complete_level() -> void:
+func _ability_label(id: String) -> String:
+	match id:
+		"tandem_bike": return "Tandem Bike"
+		"bike_bell": return "Bike Bell"
+		"cooler_basket": return "Cooler Basket"
+		"portable_grill": return "Portable Grill"
+	return id.capitalize()
+
+func _complete_level(next_id: String = "", next_spawn: String = "start") -> void:
 	if _completing:
 		return
 	_completing = true
@@ -261,9 +280,10 @@ func _complete_level() -> void:
 	var stamp := String(level.get("stamp", ""))
 	if stamp != "":
 		gs.add_stamp(stamp)
-	var nxt := String(level.get("next_level_id", ""))
-	if nxt != "":
-		gs.unlock_level(nxt)
+	if next_id == "":
+		next_id = String(level.get("next_level_id", ""))
+	if next_id != "":
+		gs.unlock_level(next_id)
 	var ab := String(level.get("ability_unlock", ""))
 	if ab != "":
 		gs.unlock_ability(ab)
@@ -271,7 +291,7 @@ func _complete_level() -> void:
 	if bonus > 0:
 		gs.power += bonus
 		gs.meters_changed.emit()
-	_show_level_complete(stamp, nxt)
+	_show_level_complete(stamp, next_id, next_spawn)
 
 func _play(id: String) -> void:
 	if id != "" and dlg:
@@ -281,15 +301,28 @@ func _play(id: String) -> void:
 func _on_puzzle_solved(puzzle_id: String) -> void:
 	if gs:
 		gs.mark_puzzle_solved(puzzle_id)
-	if puzzle_id == "lake_map":
-		_play("L1_MAP_SOLVED")
+	var o := _find_object_by_id(puzzle_id)
+	if not o.is_empty():
+		_play(String(o.get("solved_dialogue", "")))
+
+func _find_object_by_id(id: String) -> Dictionary:
+	for o in objects:
+		if String(o.get("id", "")) == id:
+			return o
+	return {}
 
 # ---------------------------------------------------------------- tree-only visuals
 func _open_puzzle(o: Dictionary) -> void:
 	if not is_inside_tree():
 		return
-	var pz = RotationPuzzleScript.new()
-	pz.configure(String(o["id"]), o.get("target", [1, 2, 0, 3]))
+	var kind := String(o.get("kind", "rotation"))
+	var pz
+	if kind == "rhythm":
+		pz = RhythmPuzzleScript.new()
+		pz.configure(String(o["id"]), o.get("target", ["low", "low", "high"]), {}, {}, String(o.get("title", "")), "")
+	else:
+		pz = RotationPuzzleScript.new()
+		pz.configure(String(o["id"]), o.get("target", [1, 2, 0, 3]), o.get("labels", []), String(o.get("title", "")))
 	pz.solved.connect(_on_puzzle_solved)
 	add_child(pz)
 
@@ -352,11 +385,11 @@ func _refresh_objective() -> void:
 	else:
 		hud.set_objective("Find Remy near the lake.")
 
-func _show_level_complete(stamp: String, _next: String) -> void:
+func _show_level_complete(stamp: String, next_id: String, next_spawn: String) -> void:
 	if not is_inside_tree():
 		return
 	var lc = LevelCompleteScript.new()
-	lc.configure(level, stamp, gs, data)
+	lc.configure(level, stamp, gs, data, next_id, next_spawn)
 	add_child(lc)
 
 # ---------------------------------------------------------------- drawing

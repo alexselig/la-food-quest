@@ -107,7 +107,7 @@ func _refresh_clock() -> void:
 
 func set_objective(text: String) -> void:
     if _obj_lbl:
-        _obj_lbl.text = ("\u25B6 " + text) if text != "" else ""
+        _obj_lbl.text = ("> " + text) if text != "" else ""
 
 func _bar(parent: Control, pos: Vector2, color: Color) -> ColorRect:
     var bg := ColorRect.new()

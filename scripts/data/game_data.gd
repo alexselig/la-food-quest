@@ -10,6 +10,8 @@ const SPEAKERS := {
 	"remy": {"name": "Remy the Critic", "color": Color(0.93, 0.76, 0.32)},
 	"mara": {"name": "Vendor Mara", "color": Color(0.42, 0.82, 0.72)},
 	"nia": {"name": "Nia", "color": Color(0.45, 0.80, 0.42)},
+	"sol": {"name": "Ranger Sol", "color": Color(0.55, 0.75, 0.45)},
+	"ori": {"name": "Chef Ori", "color": Color(0.85, 0.6, 0.45)},
 	"narrator": {"name": "", "color": Color(1, 1, 1)},
 }
 
@@ -45,6 +47,18 @@ const RESTAURANTS := {
 		"food_dex_description": "A windowless window. Toasted pepper, scallion, chili crisp. No sign, no address, all credibility.",
 		"sprite": "ramen",
 	},
+	"observatory_cafe": {
+		"display_name": "Observatory Picnic Café",
+		"neighborhood": "Los Feliz",
+		"signature_dish": "Trail Mix Toast",
+		"power": 20, "fullness": 32.0, "energy": 8.0, "minutes": 30,
+		"open_minute": 360, "close_minute": 1380,
+		"first_visit_dialogue": "L2_CAFE_ARRIVAL",
+		"meal_dialogue": "L2_CAFE_MEAL",
+		"repeat_dialogue": "",
+		"food_dex_description": "Citrus ricotta, dates, toasted seeds, sea salt. The view gets people here; the toast brings them back.",
+		"sprite": "diner",
+	},
 }
 
 # --- Levels ---
@@ -74,8 +88,8 @@ const LEVELS := {
 			{"type": "sign", "id": "sign_noodles", "name": "\"Famous Noodles\" sign", "cell": [10, 3], "scent": "fake", "dialogue": "L1_FAKE_SCENT_NOODLES"},
 			{"type": "sign", "id": "sign_dumplings", "name": "\"Secret Dumplings\" poster", "cell": [14, 3], "scent": "fake", "dialogue": "L1_FAKE_SCENT_DUMPLINGS"},
 			{"type": "sign", "id": "sign_alley", "name": "Unmarked alley", "cell": [18, 3], "scent": "real", "dialogue": "L1_REAL_SCENT"},
-			{"type": "puzzle", "id": "lake_map", "name": "Broken Lake Map", "cell": [7, 8], "kind": "rotation"},
-			{"type": "restaurant", "id": "sunset_noodle", "name": "Sunset Noodle Window", "rect": [28, 3, 2, 2], "require_flag": "scent_solved"},
+			{"type": "puzzle", "id": "lake_map", "name": "Broken Lake Map", "cell": [7, 8], "kind": "rotation", "target": [1, 2, 0, 3], "labels": ["Lotus", "Fountain", "Bridge", "Boathouse"], "title": "Broken Lake Map - rotate to connect the route", "solved_dialogue": "L1_MAP_SOLVED"},
+			{"type": "restaurant", "id": "sunset_noodle", "name": "Sunset Noodle Window", "rect": [28, 3, 2, 2], "require_flag": "scent_solved", "locked_hint": "The window stays hidden. Follow the real aroma first.", "discover_step": "find_restaurant", "eat_step": "eat_noodles"},
 			{"type": "park_activity", "id": "echo_loop", "name": "Echo Park Loop", "cell": [6, 17], "fullness": 35.0, "energy": 18.0, "mins": 45, "recipe": "chili_crisp_noodles", "step": "park_loop"},
 			{"type": "item", "id": "chain_pin", "name": "Chain Pin", "cell": [12, 18], "hint": "from the bridge"},
 			{"type": "item", "id": "oil", "name": "Oil Can", "cell": [26, 11], "hint": "from the maintenance shed"},
@@ -84,6 +98,35 @@ const LEVELS := {
 			{"type": "bike_rack", "id": "bike_rack", "name": "Bike Rack", "cell": [30, 16]},
 			{"type": "rest_point", "id": "bench", "name": "Lake Bench", "cell": [4, 9], "mode": "bench", "energy": 25.0, "mins": 90, "sprite": "bench"},
 			{"type": "exit", "id": "silver_lake_exit", "name": "Silver Lake Gate", "cell": [32, 10], "target_level": "griffith", "target_spawn": "from_echo"},
+		],
+	},
+	"griffith": {
+		"display_name": "Griffith Park & Los Feliz",
+		"cols": 40, "rows": 24,
+		"ground": "grass",
+		"next_level_id": "koreatown",
+		"stamp": "griffith_star",
+		"ability_unlock": "bike_bell",
+		"bonus_power": 5,
+		"completion_quest_id": "L2_MAIN",
+		"opening_dialogue": "L2_OPENING",
+		"spawns": {"start": [4, 4], "from_echo": [4, 4]},
+		"water": [],
+		"obstacles": [
+			{"id": "fill_office", "rect": [29, 3, 2, 2]},
+			{"id": "fill_house", "rect": [14, 9, 2, 2]},
+			{"id": "fill_shop_b", "rect": [22, 14, 2, 2]},
+		],
+		"objects": [
+			{"type": "npc", "id": "sol", "name": "Ranger Sol", "cell": [8, 4], "dialogue": "L2_MEET_RANGER", "starts_quest": "L2_MAIN", "sprite": "npc"},
+			{"type": "puzzle", "id": "trail_markers", "name": "Rotated Trail Markers", "cell": [12, 6], "kind": "rotation", "target": [2, 1, 3, 0], "labels": ["Creek", "Observ.", "Overlook", "Fork"], "title": "Rotate the trail signs to the only routes that work", "solved_dialogue": "L2_TRAIL_MARKERS_SOLVED"},
+			{"type": "puzzle", "id": "shadow_dial", "name": "Observatory Shadow Dial", "cell": [20, 9], "kind": "rotation", "target": [3, 1, 2, 0], "labels": ["Owl", "Rabbit", "Bear", "Coyote"], "title": "Shadow Dial: owl west, rabbit east, bear south, coyote north", "solved_dialogue": "L2_SUNDIAL_SOLVED"},
+			{"type": "puzzle", "id": "trail_bells", "name": "Trail Bells", "cell": [27, 11], "kind": "rhythm", "target": ["low", "low", "high"], "title": "Ring the bells: short, short, long", "solved_dialogue": "L2_BELLS_SOLVED"},
+			{"type": "restaurant", "id": "observatory_cafe", "name": "Observatory Picnic Café", "rect": [33, 5, 2, 2], "require_flag": "overlook_found", "locked_hint": "The overlook is still hidden. Ring the trail bells first.", "discover_step": "find_cafe", "eat_step": "eat_toast"},
+			{"type": "park_activity", "id": "hill_intervals", "name": "Griffith Hill Intervals", "cell": [10, 18], "fullness": 40.0, "energy": 24.0, "mins": 60, "recipe": "trail_mix_toast", "step": "hill_intervals", "grants_ability": "bike_bell", "unlock_dialogue": "L2_BELL_UNLOCK"},
+			{"type": "rest_point", "id": "bench2", "name": "Trail Bench", "cell": [6, 11], "mode": "bench", "energy": 25.0, "mins": 90, "sprite": "bench"},
+			{"type": "bike_rack", "id": "bike_rack2", "name": "Bike Rack", "cell": [5, 6]},
+			{"type": "exit", "id": "los_feliz_exit", "name": "Los Feliz Gate", "cell": [38, 12], "target_level": "koreatown", "target_spawn": "from_griffith", "require_ability": "bike_bell"},
 		],
 	},
 }
@@ -102,6 +145,20 @@ const QUESTS := {
 			{"id": "park_loop", "text": "Too full! Do a lap at Echo Park."},
 			{"id": "unlock_bike", "text": "Fix Nia's tandem bike (find 3 parts)."},
 			{"id": "reach_exit", "text": "Ride to the Silver Lake exit."},
+		],
+	},
+	"L2_MAIN": {
+		"title": "Where the City Looks Small",
+		"level_id": "griffith",
+		"steps": [
+			{"id": "meet_ranger", "text": "Talk to Ranger Sol at the entrance."},
+			{"id": "fix_trail_markers", "text": "Fix the rotated trail markers (Trail Finder, A)."},
+			{"id": "solve_sundial", "text": "Solve the observatory shadow dial."},
+			{"id": "ring_bells", "text": "Ring the trail bells: short, short, long."},
+			{"id": "find_cafe", "text": "Find the Observatory Picnic Café."},
+			{"id": "eat_toast", "text": "Eat the Trail Mix Toast."},
+			{"id": "hill_intervals", "text": "Run the hill intervals to earn the Bike Bell."},
+			{"id": "reach_exit", "text": "Ring the bell and ride to the Los Feliz exit."},
 		],
 	},
 }
@@ -188,6 +245,50 @@ const DIALOGUES := {
 	"L1_COMPLETE": {"start": "a", "nodes": {
 		"a": {"speaker": "xiao", "text": "One neighborhood down.", "next": "b"},
 		"b": {"speaker": "alp", "text": "The list is filling in. Silver Lake is that way.", "next": ""},
+	}},
+	# Level 2
+	"L2_OPENING": {"start": "a", "nodes": {
+		"a": {"speaker": "narrator", "text": "Remy's second clue: \"Eat where the city looks small and the appetite looks enormous.\"", "next": "b"},
+		"b": {"speaker": "xiao", "text": "The observatory. Obviously.", "next": "c"},
+		"c": {"speaker": "alp", "text": "It says where, not inside. Try to contain yourself.", "next": ""},
+	}},
+	"L2_MEET_RANGER": {"start": "a", "nodes": {
+		"a": {"speaker": "sol", "text": "Wind spun the trail signs around. Half the park is walking in circles.", "next": "b"},
+		"b": {"speaker": "sol", "text": "Set them right with your eye for routes, and the overlook opens up.", "next": "c"},
+		"c": {"speaker": "alp", "text": "Finally. A problem with a correct answer.", "complete_step": "meet_ranger", "next": ""},
+	}},
+	"L2_TRAIL_MARKERS_SOLVED": {"start": "a", "nodes": {
+		"a": {"speaker": "xiao", "text": "Couldn't we just follow someone confident?", "next": "b"},
+		"b": {"speaker": "alp", "text": "Confidence is how these signs got rotated.", "complete_step": "fix_trail_markers", "next": ""},
+	}},
+	"L2_SUNDIAL_SOLVED": {"start": "a", "nodes": {
+		"a": {"speaker": "xiao", "text": "We moved four stone animals and opened a café.", "next": "b"},
+		"b": {"speaker": "alp", "text": "Urban planning used to be more ambitious.", "complete_step": "solve_sundial", "next": ""},
+	}},
+	"L2_BELLS_SOLVED": {"start": "a", "nodes": {
+		"a": {"speaker": "sol", "text": "Short, short, long. There it is - the overlook trail opens.", "next": "b"},
+		"b": {"speaker": "xiao", "text": "Three for snacks?", "next": "c"},
+		"c": {"speaker": "alp", "text": "There is no snack protocol.", "set_flags": ["overlook_found"], "complete_step": "ring_bells", "next": ""},
+	}},
+	"L2_CAFE_ARRIVAL": {"start": "a", "nodes": {
+		"a": {"speaker": "ori", "text": "The view gets people here. The toast brings them back.", "next": "b"},
+		"b": {"speaker": "xiao", "text": "I came for the toast.", "next": "c"},
+		"c": {"speaker": "alp", "text": "He did not know it existed.", "next": ""},
+	}},
+	"L2_CAFE_MEAL": {"start": "a", "nodes": {
+		"a": {"speaker": "xiao", "text": "You really do like knowing where we are.", "next": "b"},
+		"b": {"speaker": "alp", "text": "It helps.", "next": "c"},
+		"c": {"speaker": "xiao", "text": "I like not knowing yet.", "next": "d"},
+		"d": {"speaker": "alp", "text": "That also seems to help.", "next": ""},
+	}},
+	"L2_BELL_UNLOCK": {"start": "a", "nodes": {
+		"a": {"speaker": "sol", "text": "One ring for passing. Two for danger. Take the bell.", "next": "b"},
+		"b": {"speaker": "xiao", "text": "Three for snacks.", "next": "c"},
+		"c": {"speaker": "alp", "text": "He will not let this go.", "next": ""},
+	}},
+	"L2_COMPLETE": {"start": "a", "nodes": {
+		"a": {"speaker": "xiao", "text": "Two stamps. We're basically locals.", "next": "b"},
+		"b": {"speaker": "alp", "text": "Koreatown next. Bring your appetite and your patience.", "next": ""},
 	}},
 }
 

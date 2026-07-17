@@ -65,18 +65,18 @@ func _refresh() -> void:
 			var sid := String(step.get("id", ""))
 			var done: bool = quests != null and quests.is_step_done(qid, sid)
 			var cur: bool = quests != null and quests.current_step_id(qid) == sid
-			var mark: String = "[color=#7fd67f]\u2714[/color]" if done else ("[color=#ffd85a]\u25B6[/color]" if cur else "  ")
+			var mark: String = "[color=#7fd67f][x][/color]" if done else ("[color=#ffd85a]>[/color]" if cur else "  ")
 			s += "  %s %s\n" % [mark, String(step.get("text", sid))]
 	# Passport
 	s += "\n[b]Passport[/b]  (%d/5)\n" % gs.stamp_count()
 	for sid in data.STAMPS.keys():
 		var got: bool = gs.has_stamp(sid)
-		s += "  %s %s\n" % ["[color=#7fd67f]\u2714[/color]" if got else "\u2022", data.stamp_name(sid)]
+		s += "  %s %s\n" % ["[color=#7fd67f][x][/color]" if got else "-", data.stamp_name(sid)]
 	# Recipes
 	s += "\n[b]Recipes[/b]  (%d)\n" % gs.recipe_count()
 	for rid in data.RECIPES.keys():
 		if gs.has_recipe(rid):
-			s += "  \u2022 %s\n" % data.recipe_name(rid)
+			s += "  - %s\n" % data.recipe_name(rid)
 	# FoodDex
 	s += "\n[b]FoodDex[/b]\n"
 	var dex_names := ["Unknown", "Rumored", "Discovered", "Visited", "Signature", "Secret"]
@@ -84,7 +84,7 @@ func _refresh() -> void:
 		var st: int = gs.food_dex_state(rid)
 		var nm := String(data.get_restaurant(rid).get("display_name", rid))
 		if st == 0:
-			s += "  \u2022 ??? (Unknown)\n"
+			s += "  - ??? (Unknown)\n"
 		else:
-			s += "  \u2022 %s — %s\n" % [nm, dex_names[st]]
+			s += "  - %s - %s\n" % [nm, dex_names[st]]
 	_text.text = s
