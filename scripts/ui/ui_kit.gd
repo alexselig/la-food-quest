@@ -56,6 +56,15 @@ static func label(text: String, font: Font, size: int, color: Color) -> Label:
 	l.add_theme_color_override("font_color", color)
 	return l
 
+# Shrink a label's font size until its (already-set) text fits within max_width on one line.
+static func fit(label: Label, font: Font, base_size: int, max_width: float, min_size: int = 8) -> void:
+	var s := base_size
+	if font != null and label.text != "":
+		var w: float = font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, base_size).x
+		if w > max_width and w > 0.0:
+			s = max(min_size, int(floor(base_size * max_width / w)))
+	label.add_theme_font_size_override("font_size", s)
+
 static func panel_style(bg: Color, border_c: Color, bw: int, radius: int, shadow: bool = false) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = bg

@@ -71,12 +71,14 @@ func _build() -> void:
 	title.size = Vector2(card.size.x, 30)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	card.add_child(title)
+	UIKit.fit(title, UIKit.bold(), 24, card.size.x - 48)
 
 	var route := UIKit.label("Connect the route:   " + "  >  ".join(labels), UIKit.reg(), 16, Color.html("6a5a3a"))
 	route.position = Vector2(0, 64)
 	route.size = Vector2(card.size.x, 22)
 	route.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	card.add_child(route)
+	UIKit.fit(route, UIKit.reg(), 16, card.size.x - 48)
 
 	for i in 4:
 		var nx := 55 + i * 210

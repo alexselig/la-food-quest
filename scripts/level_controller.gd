@@ -98,6 +98,9 @@ func build_from_data(id: String) -> void:
 	for od in level.get("objects", []):
 		var o: Dictionary = od.duplicate(true)
 		o["_rect"] = _obj_rect(o)
+		# A mounted tandem rides with the player; don't also place it on the map.
+		if String(o.get("type", "")) == "bike_rack" and gs != null and gs.on_bike:
+			continue
 		_add_object(o)
 
 func _obj_rect(o: Dictionary) -> Rect2i:
@@ -168,7 +171,7 @@ func interact_at(cell: Vector2i) -> String:
 		"mechanic":
 			return _interact_mechanic(o)
 		"bike_rack":
-			return _interact_bike_rack()
+			return _interact_bike_rack(o)
 		"rest_point":
 			return _interact_rest(o)
 		"puzzle":
@@ -243,12 +246,13 @@ func _interact_mechanic(o: Dictionary) -> String:
 	_play(String(o.get("unlock_dialogue", "")))
 	return String(o.get("done_msg", "Done!"))
 
-func _interact_bike_rack() -> String:
+func _interact_bike_rack(o: Dictionary) -> String:
 	if not gs.has_ability("tandem_bike"):
 		return "The tandem bike is still broken. See Nia at the boathouse."
 	if gs.on_bike:
 		return "You're already riding. Press D to hop off."
 	gs.set_bike(true)
+	_remove_object(o)  # pick the bike up; it now rides with the duo
 	if dlg and not gs.dialogue_played("GLOBAL_FIRST_BIKE_MOUNT"):
 		_play("GLOBAL_FIRST_BIKE_MOUNT")
 	return "Hopped on the tandem bike! 2 tiles per step. Press D to hop off."
@@ -373,8 +377,21 @@ func _dismount_bike() -> void:
 	if gs == null or not gs.on_bike:
 		return
 	gs.set_bike(false)
+	if player != null:
+		_drop_bike_at(player.cell)
 	if hud:
-		hud.toast("Hopped off the bike.")
+		hud.toast("Parked the tandem bike here.")
+
+# Leave exactly one bike where the duo dismounts (never a duplicate).
+func _drop_bike_at(cell: Vector2i) -> void:
+	for o in objects:
+		if String(o.get("type", "")) == "bike_rack":
+			return
+	var bike := {
+		"type": "bike_rack", "id": "bike", "name": "Tandem Bike",
+		"cell": [cell.x, cell.y], "_rect": Rect2i(cell.x, cell.y, 1, 1),
+	}
+	_add_object(bike)
 
 func _process(_delta: float) -> void:
 	if trail_finder_active or food_sense_active:

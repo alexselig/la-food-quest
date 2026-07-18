@@ -67,6 +67,7 @@ func _mk(card: Panel, text: String, font: Font, size: int, y: int, color: Color)
 	l.size = Vector2(card.size.x, size + 14)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	card.add_child(l)
+	UIKit.fit(l, font, size, card.size.x - 44)
 	return l
 
 func is_solved() -> bool:

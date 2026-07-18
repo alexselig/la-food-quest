@@ -75,6 +75,7 @@ func _build() -> void:
 	title.size = Vector2(card.size.x, 30)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	card.add_child(title)
+	UIKit.fit(title, UIKit.bold(), 22, card.size.x - 48)
 
 	var gap := 24.0
 	var total := card.size.x - 80.0

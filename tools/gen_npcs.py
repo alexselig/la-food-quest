@@ -17,7 +17,8 @@ REF = os.path.join(PROJ, "design", "reference", "alp_xiao_duo_ref.png")
 NPC_DIR = os.path.join(PROJ, "assets", "npcs")
 TILE_DIR = os.path.join(PROJ, "assets", "tiles")
 PROP_DIR = os.path.join(PROJ, "assets", "props")
-for d in (NPC_DIR, TILE_DIR, PROP_DIR):
+CHAR_DIR = os.path.join(PROJ, "assets", "characters")
+for d in (NPC_DIR, TILE_DIR, PROP_DIR, CHAR_DIR):
     os.makedirs(d, exist_ok=True)
 
 
@@ -137,6 +138,35 @@ def gen_duo(nid, desc):
     return False
 
 
+# Tandem-bike sprites, ALP always in FRONT (game design). (view, seating order, target height)
+TANDEM = {
+    "tandem_down": ("high overhead top-down view, the tandem moving SOUTH toward the viewer",
+                    "ALP (the taller friend: grey/silver spiked hair, blue denim jacket) rides in FRONT, "
+                    "nearest the viewer (lower); XIAO (shorter, red hoodie) rides BEHIND him, further away (upper)",
+                    120),
+    "tandem_up": ("high overhead top-down view from BEHIND (their backs), the tandem moving NORTH away from the viewer",
+                  "ALP (taller, grey/silver spiked hair, denim jacket) rides in FRONT, furthest away (upper); "
+                  "XIAO (red hoodie) rides BEHIND him, nearest the viewer (lower)",
+                  120),
+    "tandem_side": ("SIDE PROFILE view, the tandem bicycle pointing and moving to the RIGHT (front wheel and handlebars on the right side)",
+                    "ALP is the FRONT rider seated on the RIGHT holding the handlebars (taller, grey/silver spiked hair, "
+                    "blue denim jacket); XIAO is the BACK rider seated on the LEFT (shorter, red hoodie). Alp on the right, Xiao on the left",
+                    100),
+}
+
+
+def gen_tandem(nid, view, order, h):
+    p = (STYLE + f". The two friends from the reference riding ONE single long TANDEM BICYCLE (a two-seat "
+         f"bicycle) together, {view}. {order}. Both seated and pedaling, full bodies, exactly the same "
+         f"outfits, colors and hairstyles as the reference, ONE bike only, centered, plain solid white background.")
+    img = gen(p, REF)
+    if img:
+        save(fit_h(autocrop(remove_bg(img)), h), os.path.join(CHAR_DIR, f"{nid}.png"))
+        return True
+    print("  FAILED", nid)
+    return False
+
+
 def main():
     if not client:
         print("NO GEMINI KEY")
@@ -148,6 +178,12 @@ def main():
             continue
         print("DUO", nid)
         gen_duo(nid, desc)
+
+    for nid, (view, order, h) in TANDEM.items():
+        if only and nid not in only and "tandem" not in only:
+            continue
+        print("TANDEM", nid)
+        gen_tandem(nid, view, order, h)
 
     for nid, desc in NPCS.items():
         if only and nid not in only:

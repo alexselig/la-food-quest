@@ -154,7 +154,7 @@ func _build_time_badge() -> void:
 func _build_objective() -> void:
 	_obj_lbl = UIKit.label("", UIKit.bold(), 15, UIKit.GOLD)
 	_obj_lbl.position = Vector2(24, 176)
-	_obj_lbl.size = Vector2(760, 22)
+	_obj_lbl.size = Vector2(1000, 22)
 	_obj_lbl.add_theme_color_override("font_outline_color", UIKit.INK)
 	_obj_lbl.add_theme_constant_override("outline_size", 6)
 	_root.add_child(_obj_lbl)
@@ -170,6 +170,7 @@ func _build_hint() -> void:
 func set_objective(text: String) -> void:
 	if _obj_lbl:
 		_obj_lbl.text = ("> " + text) if text != "" else ""
+		UIKit.fit(_obj_lbl, UIKit.bold(), 15, 1000)
 
 # ---------------------------------------------------------------- toast
 func _build_toast() -> void:
@@ -196,6 +197,12 @@ func _build_toast() -> void:
 	pad.add_child(_toast_lbl)
 
 func toast(text: String) -> void:
+	var fs := 20
+	var tw: float = UIKit.bold().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+	if tw > 1150.0 and tw > 0.0:
+		fs = max(12, int(20.0 * 1150.0 / tw))
+	_toast_lbl.add_theme_font_size_override("normal_font_size", fs)
+	_toast_lbl.add_theme_font_size_override("bold_font_size", fs)
 	var shown := text
 	if "PWR" in text:
 		var idx := text.find("+")

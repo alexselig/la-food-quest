@@ -81,6 +81,7 @@ func _ready() -> void:
 	title.add_theme_constant_override("shadow_offset_y", 4)
 	title.add_theme_constant_override("shadow_outline_size", 2)
 	root.add_child(title)
+	UIKit.fit(title, UIKit.title(), 34, UIKit.REF.x - 100)
 
 	var stamp_name: String = _data.stamp_name(_stamp) if _data else _stamp
 	var bonus := int(_level.get("bonus_power", 0))
@@ -92,6 +93,7 @@ func _ready() -> void:
 	subtitle.size = Vector2(UIKit.REF.x, 30)
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(subtitle)
+	UIKit.fit(subtitle, UIKit.bold(), 21, UIKit.REF.x - 100)
 
 	if has_next:
 		var nxt := UIKit.label("Next: %s" % _pretty(_next_id), UIKit.bold(), 16, Color.html("5a2416"))
