@@ -114,11 +114,40 @@ def gen_npc(nid, desc):
     return False
 
 
+# The two heroes as SOLO portraits (extracted from the duo reference) for dialogue.
+DUO = {
+    "alp": ("the TALLER of the two friends: a tall lanky young Turkish man, fair slightly-tan skin, "
+            "mostly grey/silver short spiked hair with a central spike, wearing an open blue denim "
+            "jacket over a shirt"),
+    "xiao": ("the SHORTER of the two friends: a young Chinese man a bit shorter than Alp, short spiked "
+             "black hair with a central spike, wearing a bright red hoodie"),
+}
+
+
+def gen_duo(nid, desc):
+    p = (STYLE + f". Using the reference image of the two friends for their exact designs, draw ONLY ONE "
+         f"of them as a SOLO character: {desc}. Exactly one single character, full body head-to-toe, "
+         f"standing and facing SOUTH toward the viewer, arms at sides, same outfit, colors and hairstyle "
+         f"as in the reference, centered, plain solid white background. Do NOT draw the other friend.")
+    img = gen(p, REF)
+    if img:
+        save(fit_h(autocrop(remove_bg(img)), 96), os.path.join(NPC_DIR, f"{nid}.png"))
+        return True
+    print("  FAILED", nid)
+    return False
+
+
 def main():
     if not client:
         print("NO GEMINI KEY")
         sys.exit(1)
     only = sys.argv[1:]  # optional subset of ids
+
+    for nid, desc in DUO.items():
+        if only and nid not in only:
+            continue
+        print("DUO", nid)
+        gen_duo(nid, desc)
 
     for nid, desc in NPCS.items():
         if only and nid not in only:

@@ -1,8 +1,9 @@
-extends Node2D
-## Neon circuit puzzle (spec 14.5) as a "lights-out" relay board: toggling a relay flips
-## it and its neighbors; the block is powered when every relay is lit. The start state is a
-## fixed scramble applied from all-lit, so it is always solvable by repeating that scramble.
-## Modal (pauses tree). Left/Right select, Space toggle, R reset, Esc leave (no penalty).
+extends CanvasLayer
+## Neon circuit puzzle as "lights-out": toggling a relay flips it and its neighbors; solved
+## when every relay is lit. Start is a fixed scramble from all-lit, so it is always solvable.
+## High-res UI-kit styled modal. Left/Right select, Space toggle, R reset, Esc leave.
+
+const UIKit := preload("res://scripts/ui/ui_kit.gd")
 
 signal solved(puzzle_id)
 signal closed(puzzle_id)
@@ -10,13 +11,12 @@ signal closed(puzzle_id)
 var puzzle_id := "neon_circuit"
 var n := 5
 var labels: Array = ["Source", "Ember", "Karaoke", "Dessert", "Relay"]
-var scramble: Array = [1, 3]     # toggles from all-lit -> solvable start
+var scramble: Array = [1, 3]
 var title_text := "Neon Circuit: light every relay"
 
 var lights: Array = []
 var sel := 0
 var _done := false
-var _root: Control
 var _cells: Array = []
 
 func configure(id: String, count: int = 5, scr: Array = [], lbls: Array = [], ttl: String = "") -> void:
@@ -36,7 +36,6 @@ func init_state() -> void:
 	for i in scramble:
 		apply_toggle(int(i))
 
-## Pure logic: flip relay i and its immediate neighbors.
 func apply_toggle(i: int) -> void:
 	for j in [i - 1, i, i + 1]:
 		if j >= 0 and j < n:
@@ -49,7 +48,9 @@ func is_solved() -> bool:
 	return true
 
 func _ready() -> void:
+	layer = 160
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	UIKit.hi_res(self)
 	init_state()
 	_build()
 	var t := get_tree()
@@ -60,34 +61,42 @@ func _ready() -> void:
 func _build() -> void:
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.72)
-	dim.size = Vector2(320, 180)
+	dim.position = Vector2.ZERO
+	dim.size = UIKit.REF
 	add_child(dim)
-	_root = Control.new()
-	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(_root)
-	_mk(title_text, 9, Vector2(20, 26), 280).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var w := 300.0 / float(n)
-	for i in n:
-		var box := ColorRect.new()
-		box.position = Vector2(12 + i * w, 70)
-		box.size = Vector2(w - 8, 34)
-		_root.add_child(box)
-		var lbl := _mk(labels[i] if i < labels.size() else str(i), 6, Vector2(12 + i * w, 108), int(w))
-		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_cells.append(box)
-	_mk("Left/Right select   Space toggle   R reset   Esc leave", 7, Vector2(20, 150), 280).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var card := Panel.new()
+	card.size = Vector2(960, 380)
+	card.position = (UIKit.REF - card.size) / 2.0
+	card.add_theme_stylebox_override("panel", UIKit.panel_style(UIKit.CREAM, UIKit.INK, 5, 16, true))
+	add_child(card)
 
-func _mk(text: String, size: int, pos: Vector2, w: int) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.position = pos
-	l.size = Vector2(w, 16)
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", Color(1, 1, 1))
-	l.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-	l.add_theme_constant_override("outline_size", 3)
-	_root.add_child(l)
-	return l
+	var title := UIKit.label(title_text, UIKit.bold(), 22, UIKit.INK)
+	title.position = Vector2(0, 28)
+	title.size = Vector2(card.size.x, 30)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card.add_child(title)
+
+	var gap := 24.0
+	var total := card.size.x - 80.0
+	var cw: float = (total - gap * (n - 1)) / float(n)
+	for i in n:
+		var cx := 40.0 + i * (cw + gap)
+		var cell := Panel.new()
+		cell.position = Vector2(cx, 110)
+		cell.size = Vector2(cw, 120)
+		card.add_child(cell)
+		var lbl := UIKit.label(String(labels[i]) if i < labels.size() else str(i), UIKit.bold(), 15, UIKit.INK)
+		lbl.position = Vector2(cx, 240)
+		lbl.size = Vector2(cw, 22)
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		card.add_child(lbl)
+		_cells.append(cell)
+
+	var help := UIKit.label("Left / Right  select      Space  toggle      R  reset      Esc  leave", UIKit.reg(), 14, Color.html("6a5a3a"))
+	help.position = Vector2(0, 330)
+	help.size = Vector2(card.size.x, 22)
+	help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card.add_child(help)
 
 func toggle(i: int) -> void:
 	if _done:
@@ -100,10 +109,9 @@ func toggle(i: int) -> void:
 func _refresh() -> void:
 	for i in _cells.size():
 		var lit: bool = lights[i]
-		var c := _cells[i] as ColorRect
-		c.color = Color(0.3, 1.0, 0.5) if lit else Color(0.25, 0.12, 0.12)
-		if i == sel:
-			c.color = c.color.lightened(0.25) if lit else Color(0.5, 0.3, 0.3)
+		var bg := Color.html("3ad07a") if lit else Color.html("3a2020")
+		var border := UIKit.GOLD if i == sel else (Color.html("2a8a55") if lit else Color.html("5a3030"))
+		_cells[i].add_theme_stylebox_override("panel", UIKit.panel_style(bg, border, 4 if i == sel else 2, 10))
 
 func _input(event: InputEvent) -> void:
 	if _done or not (event is InputEventKey) or not event.pressed or event.echo:

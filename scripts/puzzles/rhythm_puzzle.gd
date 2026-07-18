@@ -1,23 +1,21 @@
-extends Node2D
-## Rhythm/sequence puzzle (spec 13.7 bell sequence, 14.8 dance circle). Player reproduces
-## a target token sequence (e.g. low/low/high). A wrong press resets the attempt with no
-## penalty (main quests never hard-fail). Modal (pauses the tree). Esc leaves.
+extends CanvasLayer
+## Rhythm/sequence puzzle (bell sequence, cooking stages). Reproduce the target token
+## sequence; a wrong press resets with no penalty. High-res UI-kit styled modal.
+
+const UIKit := preload("res://scripts/ui/ui_kit.gd")
 
 signal solved(puzzle_id)
 signal closed(puzzle_id)
 
 var puzzle_id := "trail_bells"
 var target: Array = ["low", "low", "high"]
-# keycode -> token
 var key_tokens: Dictionary = {KEY_DOWN: "low", KEY_UP: "high"}
-# token -> display symbol
-var symbols: Dictionary = {"low": "lo", "high": "HI"}
+var symbols: Dictionary = {"low": "LOW", "high": "HIGH"}
 var title_text := "Ring the bells: short, short, long"
-var prompt_text := "Down = low bell    Up = high bell"
+var prompt_text := "Down = low bell      Up = high bell"
 
 var input: Array = []
 var _done := false
-var _root: Control
 var _target_lbl: Label
 var _input_lbl: Label
 var _feedback: Label
@@ -36,7 +34,9 @@ func configure(id: String, tgt: Array, keys: Dictionary = {}, syms: Dictionary =
 		prompt_text = prompt
 
 func _ready() -> void:
+	layer = 160
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	UIKit.hi_res(self)
 	_build()
 	var t := get_tree()
 	if t:
@@ -45,34 +45,28 @@ func _ready() -> void:
 
 func _build() -> void:
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.7)
-	dim.size = Vector2(320, 180)
+	dim.color = Color(0, 0, 0, 0.72)
+	dim.position = Vector2.ZERO
+	dim.size = UIKit.REF
 	add_child(dim)
-	_root = Control.new()
-	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(_root)
-	var title := _mk(title_text, 9, Vector2(20, 34), 280)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_target_lbl = _mk("", 20, Vector2(20, 60), 280)
-	_target_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_input_lbl = _mk("", 20, Vector2(20, 92), 280)
-	_input_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_input_lbl.add_theme_color_override("font_color", Color(1, 0.9, 0.4))
-	_feedback = _mk("", 8, Vector2(20, 126), 280)
-	_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var help := _mk(prompt_text + "    Esc leave", 8, Vector2(20, 150), 280)
-	help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var card := Panel.new()
+	card.size = Vector2(900, 360)
+	card.position = (UIKit.REF - card.size) / 2.0
+	card.add_theme_stylebox_override("panel", UIKit.panel_style(UIKit.CREAM, UIKit.INK, 5, 16, true))
+	add_child(card)
 
-func _mk(text: String, size: int, pos: Vector2, w: int) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.position = pos
-	l.size = Vector2(w, 16)
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", Color(1, 1, 1))
-	l.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-	l.add_theme_constant_override("outline_size", 3)
-	_root.add_child(l)
+	_mk(card, title_text, UIKit.bold(), 22, 30, UIKit.INK)
+	_target_lbl = _mk(card, "", UIKit.bold(), 30, 110, UIKit.INK)
+	_input_lbl = _mk(card, "", UIKit.bold(), 30, 170, Color.html("c17a1e"))
+	_feedback = _mk(card, "", UIKit.reg(), 16, 240, Color.html("b03030"))
+	_mk(card, prompt_text + "        Esc  leave", UIKit.reg(), 14, 310, Color.html("6a5a3a"))
+
+func _mk(card: Panel, text: String, font: Font, size: int, y: int, color: Color) -> Label:
+	var l := UIKit.label(text, font, size, color)
+	l.position = Vector2(0, y)
+	l.size = Vector2(card.size.x, size + 14)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card.add_child(l)
 	return l
 
 func is_solved() -> bool:
@@ -91,7 +85,7 @@ func press_token(tok: String) -> void:
 	if not _prefix_ok(input.size()):
 		input.clear()
 		if _feedback:
-			_feedback.text = "The birds answer wrong. Try again."
+			_feedback.text = "Not quite - the birds answer wrong. Try again."
 	elif is_solved():
 		_win()
 	_refresh()
@@ -99,13 +93,13 @@ func press_token(tok: String) -> void:
 func _refresh() -> void:
 	if _target_lbl == null:
 		return
-	_target_lbl.text = "Target:  " + _syms(target)
-	_input_lbl.text = "You:     " + _syms(input)
+	_target_lbl.text = "Target:    " + _syms(target)
+	_input_lbl.text = "You:        " + _syms(input)
 
 func _syms(seq: Array) -> String:
 	var out := ""
 	for t in seq:
-		out += String(symbols.get(t, "?")) + " "
+		out += String(symbols.get(t, "?")) + "   "
 	return out.strip_edges()
 
 func _input(event: InputEvent) -> void:
