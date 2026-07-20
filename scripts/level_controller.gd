@@ -39,6 +39,7 @@ var hud: CanvasLayer
 var trail_finder_active := false
 var food_sense_active := false
 var _completing := false
+var _pending_toast := ""
 
 var _grass: Texture2D
 var _wall: Texture2D
@@ -56,6 +57,8 @@ func _ready() -> void:
 	_setup_hud()
 	if quests:
 		quests.quest_updated.connect(func(_q): _refresh_objective())
+	if dlg:
+		dlg.dialogue_finished.connect(_on_dialogue_finished)
 	_refresh_objective()
 	var opening := String(level.get("opening_dialogue", ""))
 	if dlg and opening != "" and gs and not gs.dialogue_played(opening):
@@ -124,6 +127,7 @@ func _add_object(o: Dictionary) -> void:
 	for c in _rect_cells(o["_rect"]):
 		objects_by_cell[c] = o
 		blocked[c] = true
+	queue_redraw()
 
 func _remove_object(o: Dictionary) -> void:
 	for c in _rect_cells(o["_rect"]):
@@ -144,7 +148,19 @@ func _on_interact(cell: Vector2i) -> void:
 		_dismount_bike()
 		return
 	if msg != "" and hud:
-		hud.toast(msg)
+		# If this interaction also started a dialogue, hold the toast until the
+		# dialogue box closes so the toast isn't hidden behind it (both sit at the
+		# bottom; the dialogue layer renders above the toast layer).
+		if dlg != null and dlg.is_active():
+			_pending_toast = msg
+		else:
+			hud.toast(msg)
+
+func _on_dialogue_finished(_id: String) -> void:
+	if _pending_toast != "" and hud:
+		var m := _pending_toast
+		_pending_toast = ""
+		hud.toast(m)
 
 func interact_at(cell: Vector2i) -> String:
 	if not objects_by_cell.has(cell) or gs == null:
