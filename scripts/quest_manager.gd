@@ -26,6 +26,13 @@ func start_quest(quest_id: String) -> void:
 		return
 	g.active_quests[quest_id] = {"state": "active", "completed": {}}
 	quest_updated.emit(quest_id)
+	# Apply any steps that were completed (e.g. puzzles solved, scent found) before
+	# this quest became active, so out-of-order progress still counts.
+	for s in _steps(quest_id):
+		var sid := String(s.get("id", ""))
+		if g.pending_steps.get(sid, false):
+			g.pending_steps.erase(sid)
+			complete_step(quest_id, sid)
 
 func is_active(quest_id: String) -> bool:
 	var g := _gs()
@@ -74,6 +81,8 @@ func complete_step(quest_id: String, step_id: String) -> void:
 		complete_quest(quest_id)
 
 ## Complete `step_id` in whichever active quest owns it (used by dialogue/handlers).
+## If no active quest owns it yet, remember it as pending so it counts once the
+## owning quest starts - this lets players solve puzzles / do tasks out of order.
 func note_step(step_id: String) -> void:
 	var g := _gs()
 	if g == null:
@@ -82,6 +91,7 @@ func note_step(step_id: String) -> void:
 		if is_active(qid) and _has_step(qid, step_id):
 			complete_step(qid, step_id)
 			return
+	g.pending_steps[step_id] = true
 
 func complete_quest(quest_id: String) -> void:
 	var g := _gs()

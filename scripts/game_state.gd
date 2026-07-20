@@ -64,6 +64,7 @@ var quest_flags: Dictionary = {}          # gameplay flag -> true
 var dialogue_flags: Dictionary = {}       # dialogue_id -> true (one-time played)
 var puzzle_states: Dictionary = {}        # puzzle_id -> Dictionary
 var active_quests: Dictionary = {}        # quest_id -> {state,current_step,steps}
+var pending_steps: Dictionary = {}        # step_id -> true (completed before its quest was active)
 
 func reset() -> void:
     power = 0
@@ -87,6 +88,7 @@ func reset() -> void:
     dialogue_flags = {}
     puzzle_states = {}
     active_quests = {}
+    pending_steps = {}
     meters_changed.emit()
     time_changed.emit()
     bike_changed.emit(false)
@@ -305,6 +307,7 @@ func to_dict() -> Dictionary:
         "neighborhood_stamps": neighborhood_stamps,
         "quest_flags": quest_flags, "dialogue_flags": dialogue_flags,
         "puzzle_states": puzzle_states, "active_quests": active_quests,
+        "pending_steps": pending_steps,
     }
 
 func from_dict(d: Dictionary) -> void:
@@ -335,6 +338,7 @@ func from_dict(d: Dictionary) -> void:
     dialogue_flags = d.get("dialogue_flags", {})
     puzzle_states = d.get("puzzle_states", {})
     active_quests = d.get("active_quests", {})
+    pending_steps = d.get("pending_steps", {})
     meters_changed.emit()
     time_changed.emit()
     bike_changed.emit(on_bike)

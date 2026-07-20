@@ -406,6 +406,18 @@ func _run() -> int:
             printerr("  L1 unreachable: ", o.get("name", o.get("id", "?")))
     f += ck(unreach2 == 0, "all L1 interactive objects reachable from spawn")
 
+    # 9b. Out-of-order progress: a step finished before its quest is active still counts
+    var GSoo = GameStateScript.new()
+    var QMoo = QuestManagerScript.new()
+    QMoo.gs = GSoo
+    QMoo.data = DataL
+    QMoo.note_step("repair_map")   # e.g. solved the lake map before meeting Remy
+    f += ck(not QMoo.is_step_done("L1_MAIN", "repair_map"), "early step is pending (quest not started)")
+    QMoo.start_quest("L1_MAIN")
+    f += ck(QMoo.is_step_done("L1_MAIN", "repair_map"), "pending step is credited when quest starts")
+    QMoo.free()
+    GSoo.free()
+
     # ============================================================
     # Level 2 (Griffith Park) flow + Echo->Griffith transition target
     # ============================================================
