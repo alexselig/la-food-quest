@@ -56,7 +56,7 @@ func _ready() -> void:
 	_setup_camera()
 	_setup_hud()
 	if quests:
-		quests.quest_updated.connect(func(_q): _refresh_objective())
+		quests.quest_updated.connect(_on_quest_updated)
 	if dlg:
 		dlg.dialogue_finished.connect(_on_dialogue_finished)
 	_refresh_objective()
@@ -290,18 +290,36 @@ func _interact_exit(o: Dictionary) -> String:
 	if quests.is_complete(qid):
 		_complete_level(next_level, next_spawn)
 		return ""
-	var others_done := true
-	for s in (data.get_quest(qid).get("steps", []) if data else []):
-		var sid3 := String(s.get("id", ""))
-		if sid3 != "reach_exit" and not quests.is_step_done(qid, sid3):
-			others_done = false
-	if not others_done:
-		return "The gate stays shut. First: %s" % quests.current_objective(qid)
+	var remaining := _remaining_exit_steps()
+	if not remaining.is_empty():
+		var extra := "" if remaining.size() == 1 else " - %d tasks left" % remaining.size()
+		return "The gate is locked%s. Next: %s" % [extra, remaining[0]]
 	if need_ab != "" and not gs.has_ability(need_ab):
 		return "You need the %s to clear the way here." % _ability_label(need_ab)
 	quests.note_step("reach_exit")
 	_complete_level(next_level, next_spawn)
 	return ""
+
+# Step texts still needed before the exit gate opens (excludes reach_exit itself).
+func _remaining_exit_steps() -> Array:
+	var out: Array = []
+	var qid := String(level.get("completion_quest_id", ""))
+	if quests == null or qid == "" or data == null:
+		return out
+	for s in data.get_quest(qid).get("steps", []):
+		var sid := String(s.get("id", ""))
+		if sid != "reach_exit" and not quests.is_step_done(qid, sid):
+			out.append(String(s.get("text", sid)))
+	return out
+
+# True once everything but walking through the exit is done (gate shows open).
+func _exit_ready() -> bool:
+	var qid := String(level.get("completion_quest_id", ""))
+	if quests == null or qid == "":
+		return true
+	if quests.is_complete(qid):
+		return true
+	return _remaining_exit_steps().is_empty()
 
 func _ability_label(id: String) -> String:
 	match id:
@@ -429,12 +447,19 @@ func _setup_hud() -> void:
 	add_child(JournalScript.new())
 	add_child(PauseMenuScript.new())
 
+func _on_quest_updated(_q) -> void:
+	_refresh_objective()
+	queue_redraw()   # keep the exit gate's locked/open state in sync
+
 func _refresh_objective() -> void:
 	if hud == null or quests == null:
 		return
 	var qid := String(level.get("completion_quest_id", ""))
 	if qid != "" and quests.is_active(qid):
-		hud.set_objective(quests.current_objective(qid))
+		if _exit_ready():
+			hud.set_objective("All tasks done - head to the Silver Lake gate!")
+		else:
+			hud.set_objective(quests.current_objective(qid))
 	elif qid != "" and quests.is_complete(qid):
 		hud.set_objective("Ride to the exit!")
 	else:
@@ -454,7 +479,8 @@ func _load_textures() -> void:
 	_pavement = _tex("res://assets/tiles/pavement.png")
 	_star = _tex("res://assets/fx/star.png")
 	for id in ["ramen", "taco", "boba", "diner", "dumpling", "home", "golden_ladle",
-			"fill_apartment_a", "fill_apartment_b", "fill_office", "fill_shop_a", "fill_shop_b", "fill_house"]:
+			"fill_apartment_a", "fill_apartment_b", "fill_office", "fill_shop_a", "fill_shop_b", "fill_house",
+			"boathouse", "bridge", "shed", "fountain"]:
 		_sprites[id] = _tex("res://assets/buildings/%s.png" % id)
 	_sprites["park"] = _tex("res://assets/buildings/park.png")
 	_sprites["npc"] = _tex("res://assets/props/npc.png")
@@ -563,7 +589,7 @@ func _draw_object(o: Dictionary) -> void:
 		"sign":
 			_draw_sign(px, py, pw, ph)
 		"item":
-			_draw_item(px, py, pw, ph)
+			_draw_item(String(o.get("id", "")), px, py, pw, ph)
 		"puzzle":
 			_draw_puzzle_board(o, px, py, pw, ph)
 		"exit":
@@ -663,17 +689,67 @@ func _draw_sign(px: float, py: float, pw: float, ph: float) -> void:
 	draw_rect(Rect2(px + 2, py + 3, pw - 4, 1), Color(0.5, 0.38, 0.2))
 	draw_rect(Rect2(px + 2, py + 6, pw - 6, 1), Color(0.5, 0.38, 0.2))
 
-func _draw_item(px: float, py: float, pw: float, ph: float) -> void:
+func _draw_item(id: String, px: float, py: float, pw: float, ph: float) -> void:
 	var t := Time.get_ticks_msec() / 1000.0
-	var bob := sin(t * 3.0) * 1.5
+	var bob := sin(t * 3.0) * 1.4
 	var cx := px + pw * 0.5
 	var cy := py + ph * 0.5 + bob
-	_shadow(cx, py + ph - 1, pw * 0.45)
-	draw_circle(Vector2(cx, cy), 5.5, Color(1.0, 0.95, 0.5, 0.35))  # halo
-	# diamond gem
-	var pts := PackedVector2Array([Vector2(cx, cy - 4), Vector2(cx + 4, cy), Vector2(cx, cy + 4), Vector2(cx - 4, cy)])
-	draw_colored_polygon(pts, Color(0.98, 0.82, 0.30))
-	draw_line(Vector2(cx, cy - 4), Vector2(cx, cy + 4), Color(1, 1, 0.8, 0.8), 1.0)
+	_shadow(cx, py + ph - 1, pw * 0.4)
+	draw_circle(Vector2(cx, cy), 6.5, Color(1.0, 0.96, 0.6, 0.16))   # soft collectible glow
+	match id:
+		"chain_pin":
+			_draw_chain_pin(cx, cy)
+		"oil":
+			_draw_oil_can(cx, cy)
+		"bell_screw":
+			_draw_bell(cx, cy)
+		_:
+			var pts := PackedVector2Array([Vector2(cx, cy - 4), Vector2(cx + 4, cy), Vector2(cx, cy + 4), Vector2(cx - 4, cy)])
+			draw_colored_polygon(pts, Color(0.98, 0.82, 0.30))
+			draw_line(Vector2(cx, cy - 4), Vector2(cx, cy + 4), Color(1, 1, 0.8, 0.8), 1.0)
+	# twinkle so it still reads as a pickup
+	var sp: float = 0.5 + 0.5 * sin(t * 5.0)
+	draw_circle(Vector2(cx + 4.5, cy - 5.0), 1.0, Color(1, 1, 1, 0.35 + 0.45 * sp))
+
+const _INK := Color(0.12, 0.10, 0.14)
+const _STEEL := Color(0.76, 0.79, 0.86)
+const _STEEL_HI := Color(0.94, 0.96, 1.0)
+
+func _draw_chain_pin(cx: float, cy: float) -> void:
+	# a steel cotter/chain pin: looped head, straight shaft, split legs
+	draw_rect(Rect2(cx - 2, cy - 2, 4, 9), _INK)                     # shaft outline
+	draw_rect(Rect2(cx - 1, cy - 1, 2, 7), _STEEL)                   # shaft
+	draw_line(Vector2(cx - 0.2, cy - 1), Vector2(cx - 0.2, cy + 5), _STEEL_HI, 0.8)
+	draw_rect(Rect2(cx - 1.6, cy + 5, 1.1, 2.2), _STEEL)            # left leg
+	draw_rect(Rect2(cx + 0.5, cy + 5, 1.1, 2.2), _STEEL)           # right leg
+	draw_circle(Vector2(cx, cy - 3.4), 3.2, _INK)                   # looped head
+	draw_circle(Vector2(cx, cy - 3.4), 2.2, _STEEL)
+	draw_circle(Vector2(cx, cy - 3.4), 1.0, _INK)                   # hole
+
+func _draw_oil_can(cx: float, cy: float) -> void:
+	var red := Color(0.82, 0.24, 0.20)
+	draw_rect(Rect2(cx - 3.5, cy - 2.5, 7, 7.5), _INK)              # body outline
+	draw_rect(Rect2(cx - 3, cy - 2, 6, 6.5), red)                   # body
+	draw_rect(Rect2(cx - 3, cy - 2, 6, 1.8), Color(0.92, 0.36, 0.30))  # top sheen
+	draw_circle(Vector2(cx - 0.5, cy + 1.5), 1.5, Color(0.96, 0.86, 0.4))  # label dot
+	draw_rect(Rect2(cx - 1.6, cy - 4, 3.2, 2), _INK)               # cap
+	draw_rect(Rect2(cx - 1.1, cy - 3.6, 2.2, 1.2), _STEEL)
+	draw_line(Vector2(cx + 2, cy - 1), Vector2(cx + 6.2, cy - 4.2), _INK, 2.6)   # spout
+	draw_line(Vector2(cx + 2, cy - 1), Vector2(cx + 6.2, cy - 4.2), _STEEL, 1.2)
+
+func _draw_bell(cx: float, cy: float) -> void:
+	var gold := Color(0.92, 0.73, 0.26)
+	var gold_dk := Color(0.62, 0.46, 0.12)
+	draw_colored_polygon(PackedVector2Array([Vector2(cx - 3.6, cy + 3.2), Vector2(cx - 2.7, cy - 2), Vector2(cx + 2.7, cy - 2), Vector2(cx + 3.6, cy + 3.2)]), _INK)
+	draw_colored_polygon(PackedVector2Array([Vector2(cx - 2.8, cy + 2.6), Vector2(cx - 2.0, cy - 1.4), Vector2(cx + 2.0, cy - 1.4), Vector2(cx + 2.8, cy + 2.6)]), gold)
+	draw_circle(Vector2(cx, cy - 1.6), 2.5, _INK)                   # dome
+	draw_circle(Vector2(cx, cy - 1.6), 1.8, gold)
+	draw_rect(Rect2(cx - 3.7, cy + 2.6, 7.4, 1.8), _INK)           # rim
+	draw_rect(Rect2(cx - 3.2, cy + 2.9, 6.4, 1.0), gold_dk)
+	draw_circle(Vector2(cx, cy + 3.8), 1.0, _INK)                  # clapper
+	draw_circle(Vector2(cx, cy - 3.7), 1.7, _INK)                  # screw loop
+	draw_circle(Vector2(cx, cy - 3.7), 0.9, _STEEL)
+	draw_line(Vector2(cx - 1.4, cy - 0.6), Vector2(cx - 1.9, cy + 2.0), Color(1, 0.96, 0.7, 0.8), 0.9)
 
 func _draw_puzzle_board(o: Dictionary, px: float, py: float, pw: float, ph: float) -> void:
 	var cx := px + pw * 0.5
@@ -690,7 +766,7 @@ func _draw_puzzle_board(o: Dictionary, px: float, py: float, pw: float, ph: floa
 	draw_line(Vector2(inner.position.x + inner.size.x * 0.5, inner.position.y), Vector2(inner.position.x + inner.size.x * 0.5, inner.position.y + inner.size.y), Color(0.3, 0.25, 0.4, 0.7), 1.0)
 
 func _draw_gate(px: float, py: float, pw: float, ph: float) -> void:
-	var open: bool = quests != null and quests.is_complete(String(level.get("completion_quest_id", "")))
+	var open: bool = _exit_ready()
 	var bottom := py + ph
 	var post := Color(0.45, 0.32, 0.2)
 	_shadow(px + pw * 0.5, bottom, pw * 0.9)

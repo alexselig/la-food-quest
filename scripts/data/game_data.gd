@@ -102,6 +102,10 @@ const LEVELS := {
 			{"id": "lotus", "rect": [13, 10, 1, 1]},
 			{"id": "lotus", "rect": [17, 12, 1, 1]},
 			{"id": "lotus", "rect": [20, 11, 1, 1]},
+			{"id": "bridge", "rect": [10, 12, 3, 3]},
+			{"id": "boathouse", "rect": [14, 12, 3, 3]},
+			{"id": "shed", "rect": [27, 10, 2, 2]},
+			{"id": "fountain", "rect": [19, 17, 2, 2]},
 		],
 		"objects": [
 			{"type": "rest_point", "id": "home", "name": "Apartment", "rect": [2, 2, 3, 2], "mode": "home", "sprite": "home"},

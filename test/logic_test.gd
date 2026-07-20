@@ -317,7 +317,7 @@ func _run() -> int:
 
     # exit locked before quest complete
     var early_exit: String = LC.interact_at(Vector2i(32, 10))
-    f += ck("shut" in early_exit.to_lower(), "exit locked before quest complete")
+    f += ck("locked" in early_exit.to_lower(), "exit locked before quest complete")
     f += ck(not QML.is_complete("L1_MAIN"), "early exit does not complete quest")
 
     # 2. restaurant hidden before scent solved
